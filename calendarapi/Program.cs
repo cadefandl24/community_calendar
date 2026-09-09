@@ -3,12 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using CalendarAPI.Middleware;
 using CalendarAPI.Services;
+using CalendarAPI.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IClaimsService, ClaimsService>();
+builder.Services.AddSignalR();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=dev.db"));
@@ -71,4 +73,5 @@ app.UseAuthentication();
 app.UseClaimsCollection();  // Add claims collection middleware before routing
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<CalendarHub>("/hubs/calendar");
 app.Run();

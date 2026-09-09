@@ -42,7 +42,7 @@ export default function Calendar({ calendarId }: Props) {
     const fetchEvents = useCallback(async () => {
         const token = await getAccessTokenSilently();
         localStorage.setItem("token", token);
-        const res = await fetch('/api/calendar/events', {
+        const res = await fetch(`/api/calendar/events?calendarId=${calendarId}`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         if (!res.ok) {
@@ -112,6 +112,7 @@ export default function Calendar({ calendarId }: Props) {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    calendarId,
                     title: form.title,
                     start: `${form.date}T${form.start}:00`,
                     end: `${form.date}T${form.end}:00`,
@@ -154,6 +155,7 @@ export default function Calendar({ calendarId }: Props) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+                calendarId,
                 title: `${form.title} (copy)`,
                 start: `${targetDate}T${form.start}:00`,
                 end: `${targetDate}T${form.end}:00`,
