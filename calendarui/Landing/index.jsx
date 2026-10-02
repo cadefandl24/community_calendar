@@ -1,5 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { useAuth0 } from "@auth0/auth0-react";
+
 
 /*
 const events = [
@@ -47,10 +49,24 @@ function LandingPage() {
       <main>
         <section className="hero">
           <h1>Your community.<br />All in one calendar.</h1>
-          <button className="button">
+          <button
+            className="button"
+            onClick={() =>
+              loginWithRedirect({
+                authorizationParams: { screen_hint: "signup" },
+              })
+            }
+          >
             Sign Up
           </button>
-          <button className="button">
+          <button
+            className="button"
+            onClick={() =>
+              loginWithRedirect({
+                authorizationParams: { screen_hint: "login" },
+              })
+            }
+          >
             Login
           </button>
         </section>
