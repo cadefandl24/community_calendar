@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { useAuth0 } from "@auth0/auth0-react";
+import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 
 
 /*
@@ -40,6 +40,20 @@ function EventCard({ event }) {
 */
 
 function LandingPage() {
+  const { loginWithRedirect, isLoading, error } = useAuth0();
+  const [loginError, setLoginError] = useState(null);
+
+  const startLogin = async (signUp = false) => {
+    setLoginError(null);
+    try {
+      await loginWithRedirect(
+        signUp ? { authorizationParams: { screen_hint: "signup" } } : {}
+      );
+    } catch (err) {
+      setLoginError(err.message || "Unable to open login. Please try again.");
+    }
+  };
+
   return (
     <>
       <header className="navbar">
@@ -51,24 +65,21 @@ function LandingPage() {
           <h1>Your community.<br />All in one calendar.</h1>
           <button
             className="button"
-            onClick={() =>
-              loginWithRedirect({
-                authorizationParams: { screen_hint: "signup" },
-              })
-            }
+            disabled={isLoading}
+            onClick={() => startLogin(true)}
           >
             Sign Up
           </button>
           <button
             className="button"
-            onClick={() =>
-              loginWithRedirect({
-                authorizationParams: { screen_hint: "login" },
-              })
-            }
+            disabled={isLoading}
+            onClick={() => startLogin()}
           >
             Login
           </button>
+          {(error || loginError) && (
+            <p role="alert">{error?.message || loginError}</p>
+          )}
         </section>
 
 
@@ -97,5 +108,11 @@ function LandingPage() {
 }
 
 createRoot(document.getElementById("root")).render(
-  <LandingPage />
+  <Auth0Provider
+    domain={import.meta.env.VITE_AUTH0_DOMAIN}
+    clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
+    authorizationParams={{ redirect_uri: window.location.origin }}
+  >
+    <LandingPage />
+  </Auth0Provider>
 );
