@@ -40,21 +40,14 @@ function EventCard({ event }) {
 */
 
 function LandingPage() {
+  function LandingPage() {
   const { loginWithRedirect, isLoading, error } = useAuth0();
-  const [loginError, setLoginError] = useState(null);
 
-  const startLogin = async (signUp = false) => {
-    setLoginError(null);
-    try {
-      await loginWithRedirect(
-        signUp ? { authorizationParams: { screen_hint: "signup" } } : {}
-      );
-    } catch (err) {
-      setLoginError(err.message || "Unable to open login. Please try again.");
-    }
-  };
+  if (isLoading) return <p>Loading...</p>;
+  if (error) return <p>Authentication error: {error.message}</p>;
 
   return (
+    // Keep your existing page JSX here
     <>
       <header className="navbar">
         <a className="logo" href="#">Community Calendar</a>
@@ -65,21 +58,24 @@ function LandingPage() {
           <h1>Your community.<br />All in one calendar.</h1>
           <button
             className="button"
-            disabled={isLoading}
-            onClick={() => startLogin(true)}
+            onClick={() =>
+              loginWithRedirect({
+                authorizationParams: { screen_hint: "signup" },
+              })
+            }
           >
             Sign Up
           </button>
           <button
             className="button"
-            disabled={isLoading}
-            onClick={() => startLogin()}
+            onClick={() =>
+              loginWithRedirect({
+                authorizationParams: { screen_hint: "login" },
+              })
+            }
           >
             Login
           </button>
-          {(error || loginError) && (
-            <p role="alert">{error?.message || loginError}</p>
-          )}
         </section>
 
 
@@ -111,8 +107,12 @@ createRoot(document.getElementById("root")).render(
   <Auth0Provider
     domain={import.meta.env.VITE_AUTH0_DOMAIN}
     clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
-    authorizationParams={{ redirect_uri: window.location.origin }}
+    authorizationParams={{
+      redirect_uri: window.location.origin,
+    }}
   >
     <LandingPage />
   </Auth0Provider>
 );
+}
+  
