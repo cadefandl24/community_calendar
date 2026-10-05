@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { createRoot } from "react-dom/client";
 import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 
@@ -40,14 +40,12 @@ function EventCard({ event }) {
 */
 
 function LandingPage() {
-  function LandingPage() {
   const { loginWithRedirect, isLoading, error } = useAuth0();
 
   if (isLoading) return <p>Loading...</p>;
   if (error) return <p>Authentication error: {error.message}</p>;
 
   return (
-    // Keep your existing page JSX here
     <>
       <header className="navbar">
         <a className="logo" href="#">Community Calendar</a>
@@ -114,5 +112,4 @@ createRoot(document.getElementById("root")).render(
     <LandingPage />
   </Auth0Provider>
 );
-}
   
