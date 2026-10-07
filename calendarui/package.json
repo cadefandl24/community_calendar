@@ -22,7 +22,9 @@
     "@prisma/client": "^7.7.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
+    "@tailwindcss/vite": "^4.3.3",
     "auth0": "^5.7.0",
+    "calendarkit-pro": "^1.1.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-oauth2-jwt-bearer": "^1.8.0",
@@ -30,7 +32,8 @@
     "prisma": "^7.7.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.1"
+    "react-router-dom": "^7.13.1",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
