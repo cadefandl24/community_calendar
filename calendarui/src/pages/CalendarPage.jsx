@@ -1,5 +1,3 @@
-import React from "react";
-import { createRoot } from 'react-dom/client';
 
 export default function CalendarPage() {
   return (
@@ -11,5 +9,3 @@ export default function CalendarPage() {
     </main>
   );
 }
-
-createRoot(document.getElementById('root')).render(<CalendarPage />);

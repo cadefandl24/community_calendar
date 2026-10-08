@@ -1,49 +1,15 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
+import CalendarPage from "../src/pages/CalendarPage";
 
-
-/*
-const events = [
-  {
-    title: "Farmers Market",
-    date: "Saturday · 9 AM",
-    location: "Town Square",
-    emoji: "🥕",
-  },
-  {
-    title: "Outdoor Concert",
-    date: "Friday · 6 PM",
-    location: "Riverside Park",
-    emoji: "🎵",
-  },
-  {
-    title: "Community Workshop",
-    date: "Sunday · 2 PM",
-    location: "Community Center",
-    emoji: "🎨",
-  },
-];
-
-function EventCard({ event }) {
-  return (
-    <article className="event-card">
-      <span className="event-icon" aria-hidden="true">
-        {event.emoji}
-      </span>
-      <p className="event-date">{event.date}</p>
-      <h3>{event.title}</h3>
-      <p>{event.location}</p>
-    </article>
-  );
-}
-*/
 
 function LandingPage() {
-  const { loginWithRedirect, isLoading, error } = useAuth0();
+  const { loginWithRedirect, isLoading, error, isAuthenticated } = useAuth0();
 
   if (isLoading) return <p>Loading...</p>;
   if (error) return <p>Authentication error: {error.message}</p>;
+  if (isAuthenticated) return <CalendarPage />;
 
   return (
     <>
