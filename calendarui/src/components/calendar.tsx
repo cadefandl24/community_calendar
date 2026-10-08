@@ -28,16 +28,14 @@ function toFcEvent(e: any) {
     };
 }
 export default function Calendar({ calendarId }: Props) {
-    const { getAccessTokenSilently, user } = useAuth0();
+    const { getAccessTokenSilently } = useAuth0();
     const [events, setEvents] = useState<any[]>([]);
-    const [importing, setImporting] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<any>(null);
     const [form, setForm] = useState<EventForm>({
         title: '', date: '', start: '10:00', end: '11:00', description: ''
     });
 
-    const isGoogleUser = user?.sub?.startsWith('google-oauth2|');
 
     const fetchEvents = useCallback(async () => {
         const token = await getAccessTokenSilently();
@@ -167,34 +165,11 @@ export default function Calendar({ calendarId }: Props) {
         fetchEvents();
     }
 
-    async function handleImportGoogle() {
-        setImporting(true);
-        const token = await getAccessTokenSilently();
-        const res = await fetch('/api/calendar/import-google', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) {
-            console.error(`Failed to import events: ${res.status} ${res.statusText}`);
-            alert('Failed to import events from Google Calendar');
-            setImporting(false);
-            return;
-        }
-        const data = await res.json();
-        alert(`Imported ${data.imported} events`);
-        setImporting(false);
-        fetchEvents();
-    }
 
     return (
         <div style={{ position: 'relative' }}>
             <div>
             
-                {/*{isGoogleUser && (*/}
-                {/*    <button onClick={handleImportGoogle} disabled={importing}>*/}
-                {/*        {importing ? 'Importing...' : 'Import from Google Calendar'}*/}
-                {/*    </button>*/}
-                {/*)}*/}
                 
                 <FullCalendar
                     plugins={[dayGridPlugin, interactionPlugin, timeGridPlugin]}
