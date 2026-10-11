@@ -39,7 +39,8 @@ export default function Calendar({ calendarId }: Props) {
     const [view, setView] = useState<ViewType>('month');
     const [date, setDate] = useState(new Date());
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [editingEvent, setEditingEvent] = useState<any>(null);
+    const [editingEvent] = useState<any>(null);
+    // const [editingEvent, setEditingEvent] = useState<any>(null);
     const [form, setForm] = useState<EventForm>({
         title: '', date: '', start: '10:00', end: '11:00', description: ''
     });
@@ -67,23 +68,23 @@ export default function Calendar({ calendarId }: Props) {
         onEventDeleted: (id) => setEvents(prev => prev.filter(x => x.id !== id)),
     });
 
-    function handleDateClick({ dateStr }: { dateStr: string }) {
-        setEditingEvent(null);
-        setForm({ title: '', date: dateStr, start: '10:00', end: '11:00', description: '' });
-        setSidebarOpen(true);
-    }
+    // function handleDateClick({ dateStr }: { dateStr: string }) {
+    //     setEditingEvent(null);
+    //     setForm({ title: '', date: dateStr, start: '10:00', end: '11:00', description: '' });
+    //     setSidebarOpen(true);
+    // }
 
-    function handleEventClick({ event }: { event: any }) {
-        setEditingEvent(event);
-        setForm({
-            title: event.title,
-            date: event.startStr.split('T')[0],
-            start: event.startStr.split('T')[1]?.slice(0, 5) || '10:00',
-            end: event.endStr.split('T')[1]?.slice(0, 5) || '11:00',
-            description: event.extendedProps.description || ''
-        });
-        setSidebarOpen(true);
-    }
+    // function handleEventClick({ event }: { event: any }) {
+    //     setEditingEvent(event);
+    //     setForm({
+    //         title: event.title,
+    //         date: event.startStr.split('T')[0],
+    //         start: event.startStr.split('T')[1]?.slice(0, 5) || '10:00',
+    //         end: event.endStr.split('T')[1]?.slice(0, 5) || '11:00',
+    //         description: event.extendedProps.description || ''
+    //     });
+    //     setSidebarOpen(true);
+    // }
 
     async function handleSave() {
 
