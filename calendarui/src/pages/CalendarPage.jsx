@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Scheduler } from 'calendarkit-pro';
 import '../index.css';
+import './CalendarPage.css';
 
 export default function CalendarPage() {
   const [showCalendar, setShowCalendar] = useState(false);
@@ -25,7 +26,7 @@ export default function CalendarPage() {
         <>
           <h2>Bring Everyone Together</h2>
           <h3>Create Your First Calendar Below</h3>
-          <button type="button" onClick={() => setShowCalendar(true)}>
+          <button className="create-calendar-button" type="button" onClick={() => setShowCalendar(true)}>
             Create Calendar
           </button>
         </>
