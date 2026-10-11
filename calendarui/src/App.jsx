@@ -1,28 +1,13 @@
-import "./App.css";
-import LoginButton from "./components/LoginButton";
-import "bootstrap/dist/css/bootstrap.min.css";
-import Home from "./pages/Home";
-import { useAuth0 } from "@auth0/auth0-react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import Navbar from "./components/Navbar";
+import './App.css';
+import CalendarPage from './pages/CalendarPage';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 
-const App = () => {
-  const { isAuthenticated } = useAuth0();
-
+export default function App() {
   return (
     <Router>
-      <div>
-        <Navbar />
-        {isAuthenticated ? (
-          <Routes>
-            <Route path="/" element={<Home />} />
-          </Routes>
-        ) : (
-          <LoginButton />
-        )}
-      </div>
+      <Routes>
+        <Route path="/" element={<CalendarPage />} />
+      </Routes>
     </Router>
   );
-};
-
-export default App;
+}

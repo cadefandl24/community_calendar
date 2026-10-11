@@ -1,7 +1,5 @@
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid'
-import interactionPlugin from '@fullcalendar/interaction';
+import { Scheduler } from 'calendarkit-pro';
+import type { CalendarEvent, ViewType } from 'calendarkit-pro';
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import Sidebar from './sidebar';
@@ -18,18 +16,28 @@ type Props = {
     calendarId: string
 };
 
-function toFcEvent(e: any) {
-    return {
-        id: e.id,
-        title: e.title,
-        start: e.startTime,
-        end: e.endTime,
-        extendedProps: { description: e.description }
-    };
+type ApiEvent = {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  description?: string;
+};
+
+function toCalendarEvent(event: ApiEvent): CalendarEvent {
+  return {
+    id: event.id,
+    title: event.title,
+    start: new Date(event.startTime),
+    end: new Date(event.endTime),
+    description: event.description ?? '',
+  };
 }
 export default function Calendar({ calendarId }: Props) {
     const { getAccessTokenSilently } = useAuth0();
-    const [events, setEvents] = useState<any[]>([]);
+    const [events, setEvents] = useState<CalendarEvent[]>([]);
+    const [view, setView] = useState<ViewType>('month');
+    const [date, setDate] = useState(new Date());
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<any>(null);
     const [form, setForm] = useState<EventForm>({
@@ -48,14 +56,14 @@ export default function Calendar({ calendarId }: Props) {
             return;
         }
         const data = await res.json();
-        setEvents(data.map(toFcEvent));
+        setEvents(data.map(toCalendarEvent));
     }, [getAccessTokenSilently, calendarId]);
 
     useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
     useCalendarHub(calendarId, getAccessTokenSilently, {
-        onEventCreated: (e) => setEvents(prev => prev.some(x => x.id === e.id) ? prev : [...prev, toFcEvent(e)]),
-        onEventUpdated: (e) => setEvents(prev => prev.map(x => x.id === e.id ? toFcEvent(e) : x)),
+        onEventCreated: (e) => setEvents(prev => prev.some(x => x.id === e.id) ? prev : [...prev, toCalendarEvent(e)]),
+        onEventUpdated: (e) => setEvents(prev => prev.map(x => x.id === e.id ? toCalendarEvent(e) : x)),
         onEventDeleted: (id) => setEvents(prev => prev.filter(x => x.id !== id)),
     });
 
@@ -171,18 +179,16 @@ export default function Calendar({ calendarId }: Props) {
             <div>
             
                 
-                <FullCalendar
-                    plugins={[dayGridPlugin, interactionPlugin, timeGridPlugin]}
-                    initialView="dayGridMonth"
-                    events={events}
-                    dateClick={handleDateClick}
-                    eventClick={handleEventClick}
-                    headerToolbar={{
-                        right: 'prev,next today',
-                        center: 'title',
-                        left: 'dayGridYear,dayGridMonth,timeGridWeek,timeGridDay'
-                    }}
-                />
+                <div style={{ height: '700px', textAlign: 'left' }}>
+                    <Scheduler
+                        events={events}
+                        view={view}
+                        onViewChange={setView}
+                        date={date}
+                        onDateChange={setDate}
+                        readOnly
+                    />
+                </div>
             </div>
 
             <Sidebar
