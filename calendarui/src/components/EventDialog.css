@@ -1,0 +1,57 @@
+.event-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  padding: 0;
+  width: min(560px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  background: #fffdf8;
+  color: #203e32;
+  border: 1px solid #dedfd5;
+  border-radius: 22px;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 24%);
+  text-align: left;
+  font: 14px/1.5 system-ui, sans-serif;
+  overflow: hidden;
+}
+.event-dialog::backdrop { background: rgb(15 31 24 / 40%); backdrop-filter: blur(4px); }
+.event-dialog *, .event-dialog *::before, .event-dialog *::after { box-sizing: border-box; }
+.event-dialog-form { display: flex; flex-direction: column; max-height: calc(100dvh - 34px); margin: 0; }
+.event-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 28px; flex-shrink: 0; border-bottom: 1px solid #e8e8df; }
+.event-dialog .event-dialog-eyebrow { color: #6d7c6b; font-size: 10px; font-weight: 700; letter-spacing: 1.8px; margin: 0 0 10px; }
+.event-dialog h2 { font-size: 26px; line-height: 1.2; color: #203e32; margin: 0 0 8px; letter-spacing: -.7px; font-weight: 650; }
+.event-dialog-header p { color: #758071; margin: 0; font-size: 13px; }
+.event-dialog button { font: inherit; cursor: pointer; transition: background .15s; }
+.event-dialog-close { border: 0; background: #f0f1e9; color: #52624f; border-radius: 50%; width: 32px; height: 32px; flex-shrink: 0; font-size: 24px !important; line-height: 1; }
+.event-dialog-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px; display: grid; gap: 20px; }
+.event-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 12px; font-weight: 650; position: relative; }
+.event-field-optional { position: absolute; top: 0; right: 0; color: #8b9185; font-weight: 400; font-size: 11px; }
+.event-dialog input, .event-dialog textarea, .event-dialog select { width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid #dce1d6; border-radius: 9px; background: #fff; color: #203e32; font: 400 14px/1.5 system-ui, sans-serif; color-scheme: light; }
+.event-dialog input::placeholder, .event-dialog textarea::placeholder { color: #91998d; }
+.event-dialog textarea { resize: vertical; min-height: 90px; }
+.event-dialog :is(input, textarea, select):focus { outline: 2px solid #9cb19b; outline-offset: 2px; border-color: #658567; }
+.event-dialog button:focus-visible, .event-dialog summary:focus-visible { outline: 3px solid #a3b991; outline-offset: 3px; }
+.event-time-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.event-dialog input[type="datetime-local"] { font-size: 12px; padding-inline: 8px; }
+.event-dialog-options { border-top: 1px solid #e8e8df; padding-top: 16px; }
+.event-dialog-options summary { cursor: pointer; font-size: 12px; font-weight: 600; }
+.event-dialog-options summary span { color: #86907e; font-size: 11px; font-weight: 400; margin-left: 8px; }
+.event-dialog-extra { display: grid; gap: 16px; padding-top: 18px; }
+.event-field small { color: #7a8475; font-weight: 400; font-size: 11px; }
+.event-dialog-error { color: #a33434; font-size: 13px; }
+.event-dialog-footer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; padding: 18px 28px; flex-shrink: 0; border-top: 1px solid #e8e8df; background: #f7f8f1; }
+.event-dialog-actions { display: flex; gap: 10px; margin-left: auto; }
+.event-dialog-cancel, .event-dialog-save, .event-dialog-delete { border-radius: 9px; padding: 11px 16px; font-weight: 600 !important; border: 1px solid transparent; }
+.event-dialog-cancel { background: transparent; color: #65715f; }
+.event-dialog-cancel:hover, .event-dialog-close:hover { background: #e8ebdf; }
+.event-dialog-save { background: #203e32; color: white; }
+.event-dialog-save:hover { background: #315c49; }
+.event-dialog-save span { margin-left: 12px; }
+.event-dialog-delete { background: transparent; color: #a33434; padding-inline: 0; }
+@media (max-width: 540px) {
+  .event-time-row { grid-template-columns: 1fr; }
+  .event-dialog-header, .event-dialog-body { padding: 20px; }
+  .event-dialog-footer { padding: 16px 20px; }
+  .event-dialog-options summary span { display: block; margin: 4px 0 0 16px; }
+}

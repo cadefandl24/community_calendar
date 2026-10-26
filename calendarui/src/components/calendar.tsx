@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Scheduler } from 'calendarkit-pro';
 import type { CalendarEvent, ViewType } from 'calendarkit-pro';
+import EventDialog from './EventDialog';
 
 export default function Calendar() {
     // Events stay in memory until the page reloads. API persistence can be added here later.
@@ -48,6 +49,7 @@ export default function Calendar() {
                 onEventDelete={deleteEvent}
                 onEventDrop={moveEvent}
                 onEventResize={moveEvent}
+                renderEventForm={({ isOpen, ...props }) => isOpen ? <EventDialog {...props} /> : null}
             />
         </div>
     );
