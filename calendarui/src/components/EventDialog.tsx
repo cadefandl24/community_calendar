@@ -53,7 +53,7 @@ export default function EventDialog({ event, initialDate, onSave, onDelete, onCl
         <dialog ref={dialog} className="event-dialog" aria-labelledby={headingId} onCancel={onClose}>
             <form className="event-dialog-form" onSubmit={save}>
                 <header className="event-dialog-header">
-                    <div><p className="event-dialog-eyebrow">COMMUNITY CALENDAR</p><h2 id={headingId}>{event ? 'Edit event' : 'Make time to connect'}</h2><p>{event ? 'Update the details for your event.' : 'A little planning. More time together.'}</p></div>
+                    <div><p className="event-dialog-eyebrow">COMMUNITY CALENDAR</p><h2 id={headingId}>{event ? 'Edit event' : 'Create your event'}</h2><p>{event ? 'Update the details for your event.' : 'Enter details below.'}</p></div>
                     <button className="event-dialog-close" type="button" aria-label="Close event form" onClick={onClose}>×</button>
                 </header>
                 <div className="event-dialog-body">
@@ -63,7 +63,7 @@ export default function EventDialog({ event, initialDate, onSave, onDelete, onCl
                         <label className="event-field">Ends <input type="datetime-local" required value={end} onChange={e => setEnd(e.target.value)} /></label>
                     </div>
                     <label className="event-field">Location <span className="event-field-optional">Optional</span><input value={location} onChange={e => setLocation(e.target.value)} placeholder="Add a place or meeting link" /></label>
-                    <label className="event-field">Notes <span className="event-field-optional">Optional</span><textarea rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Anything people should know?" /></label>
+                    <label className="event-field">Details <span className="event-field-optional">Optional</span><textarea rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Anything people should know?" /></label>
                     <details className="event-dialog-options"><summary>More options <span>Guests, reminders & repeat</span></summary>
                         <div className="event-dialog-extra">
                             <label className="event-field">Guests<input value={guests} onChange={e => setGuests(e.target.value)} placeholder="Email addresses, separated by commas" /><small>Stores guest details; invitations are not sent.</small></label>
