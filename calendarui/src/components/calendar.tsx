@@ -1,101 +1,120 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Scheduler } from 'calendarkit-pro';
 import type { CalendarEvent, ViewType } from 'calendarkit-pro';
 import EventDialog from './EventDialog';
-import { makeSupabase } from '../lib/Supabase';
 
-// Testing only: every event goes into one hard-coded calendar.
-const TEST_CALENDAR_ID = 1;
-
-// 'YYYY-MM-DD' -> local Date (new Date('YYYY-MM-DD') would parse as UTC and shift a day)
-const parseDate = (s: string) => {
-  const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
-const endOfDay = (d: Date) =>
-  new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-
-// Date -> local 'YYYY-MM-DD' (toISOString would shift to UTC)
-const toDateString = (d: Date | string) => {
-  const x = new Date(d);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+type EventResponse = {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  description?: string;
 };
 
-// Shape of a row in the Supabase `event` table
-type EventRow = {
-  eventid: number;
-  eventname: string;
-  dateevent: string; // 'YYYY-MM-DD'
-  calendarid: number;
-  creationdate?: string;
-};
-
-const fromRow = (r: EventRow): CalendarEvent => {
-  const day = parseDate(r.dateevent);
-  return {
-    id: String(r.eventid),
-    title: r.eventname,
-    start: day,
-    end: endOfDay(day),
-  } as CalendarEvent;
-};
+const fromResponse = (event: EventResponse): CalendarEvent => ({
+  ...event, start: new Date(event.start), end: new Date(event.end),
+});
 
 export default function Calendar() {
-  const { getAccessTokenSilently } = useAuth0();
-  const supabase = useMemo(
-    () => makeSupabase(() => getAccessTokenSilently()),
-    [getAccessTokenSilently]
-  );
+  const { getAccessTokenSilently, isAuthenticated, isLoading, loginWithRedirect, user } = useAuth0();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [calendar, setCalendar] = useState<{ id: string; name: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   const [view, setView] = useState<ViewType>('month');
   const [date, setDate] = useState(new Date());
 
+  async function request(path: string, options: RequestInit = {}) {
+    const token = await getAccessTokenSilently();
+    const response = await fetch(path, {
+      ...options,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Calendar request failed (${response.status}). Please try again.`);
+    return response.json();
+  }
+
   useEffect(() => {
-    supabase.from('event').select('*')
-      .eq('calendarid', TEST_CALENDAR_ID)
-      .order('dateevent')
-      .returns<EventRow[]>()
-      .then(({ data, error }) => {
-        if (error) return console.error(error);
-        setEvents((data ?? []).map(fromRow));
-      });
-  }, [supabase]);
+    let cancelled = false;
+    setCalendar(null);
+    setEvents([]);
+    if (!isAuthenticated) return;
+    setLoading(true);
+    setError('');
+    async function load() {
+      try {
+        const token = await getAccessTokenSilently();
+        const headers = { Authorization: `Bearer ${token}` };
+        const calendarResponse = await fetch('/api/calendars/personal', { headers });
+        if (!calendarResponse.ok) throw new Error('Could not load your personal calendar. Please try again.');
+        const personal = await calendarResponse.json();
+        const eventsResponse = await fetch(`/api/calendar/events?calendarId=${encodeURIComponent(personal.id)}`, { headers });
+        if (!eventsResponse.ok) throw new Error('Could not load your events. Please try again.');
+        const data: EventResponse[] = await eventsResponse.json();
+        if (!cancelled) {
+          setCalendar(personal);
+          setEvents(data.map(fromResponse));
+        }
+      } catch (cause) {
+        if (!cancelled) setError(cause instanceof Error ? cause.message : 'Could not load your calendar.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [getAccessTokenSilently, isAuthenticated, user?.sub, retry]);
 
   async function createEvent(event: Partial<CalendarEvent>) {
-    if (!event.title?.trim() || !event.start) return;
-    const { data, error } = await supabase.from('event').insert({
-      eventname: event.title.trim(),
-      dateevent: toDateString(event.start),
-      calendarid: TEST_CALENDAR_ID,
-      creationdate: new Date().toISOString(),
-      // userid omitted: it's an integer column and Auth0 IDs are text
-    }).select().single<EventRow>();
-    if (error) return console.error(error);
-    setEvents(prev => [...prev, fromRow(data)]);
+    if (!calendar || !event.title?.trim() || !event.start || !event.end) return;
+    try {
+      const saved = await request('/api/calendar/event', {
+        method: 'POST',
+        body: JSON.stringify({ ...event, calendarId: calendar.id, title: event.title.trim() }),
+      });
+      setEvents(previous => [...previous, fromResponse(saved)]);
+      setError('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save your event.');
+    }
   }
 
   async function updateEvent(event: CalendarEvent) {
-    setEvents(prev => prev.map(e => e.id === event.id ? event : e)); // optimistic
-    const { error } = await supabase.from('event').update({
-      eventname: event.title,
-      dateevent: toDateString(event.start),
-    }).eq('eventid', Number(event.id));
-    if (error) console.error(error);
+    try {
+      const saved = await request(`/api/calendar/event/${encodeURIComponent(event.id)}`, {
+        method: 'PUT', body: JSON.stringify(event),
+      });
+      setEvents(previous => previous.map(item => item.id === event.id ? fromResponse(saved) : item));
+      setError('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not update your event.');
+    }
   }
 
   async function deleteEvent(id: string) {
-    setEvents(prev => prev.filter(e => e.id !== id));
-    const { error } = await supabase.from('event').delete().eq('eventid', Number(id));
-    if (error) console.error(error);
+    try {
+      await request(`/api/calendar/event/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      setEvents(previous => previous.filter(event => event.id !== id));
+      setError('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not delete your event.');
+    }
   }
 
   const moveEvent = (e: CalendarEvent, start: Date, end: Date) =>
     updateEvent({ ...e, start, end });
 
+  if (isLoading) return <p role="status">Loading…</p>;
+  if (!isAuthenticated) return <button type="button" onClick={() => loginWithRedirect()}>Log in to see your calendar</button>;
+  if (loading) return <p role="status">Loading your calendar…</p>;
+  if (!calendar) return <div><p role="alert">{error}</p><button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></div>;
+
   return (
     <div style={{ height: 700, textAlign: 'left' }}>
+      <h2>{calendar.name}</h2>
+      {error && <p role="alert">{error}</p>}
       <Scheduler
         events={events} view={view} onViewChange={setView}
         date={date} onDateChange={setDate}

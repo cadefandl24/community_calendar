@@ -19,6 +19,38 @@ public class CalendarsController : ControllerBase
         _claimsService = claimsService;
     }
 
+    // Reuse the user's first owned calendar, or provision one on first access.
+    [HttpGet("personal")]
+    public async Task<IActionResult> GetPersonalCalendar()
+    {
+        // SQLite serializes writers so simultaneous first visits cannot create duplicates.
+        await using var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        var userId = UserId;
+        var calendar = await _db.Calendars
+            .Where(c => c.OwnerUserId == userId)
+            .OrderBy(c => c.CreatedAt).ThenBy(c => c.Id)
+            .FirstOrDefaultAsync();
+        if (calendar == null)
+        {
+            calendar = new Calendar { Name = "My Calendar", OwnerUserId = userId };
+            _db.Calendars.Add(calendar);
+        }
+        var membership = await _db.CalendarMembers
+            .FirstOrDefaultAsync(m => m.CalendarId == calendar.Id && m.UserId == userId);
+        if (membership == null)
+        {
+            _db.CalendarMembers.Add(new CalendarMember
+            {
+                CalendarId = calendar.Id, UserId = userId,
+                Email = UserEmail, Role = CalendarRole.Owner
+            });
+        }
+        else membership.Role = CalendarRole.Owner;
+        await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return Ok(new { calendar.Id, calendar.Name });
+    }
+
     // GET /api/calendars
     [HttpGet]
     public async Task<IActionResult> GetMyCalendars()
