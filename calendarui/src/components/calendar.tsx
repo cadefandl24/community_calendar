@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api';
 import { useEffect, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Scheduler } from 'calendarkit-pro';
@@ -28,7 +29,7 @@ export default function Calendar() {
 
   async function request(path: string, options: RequestInit = {}) {
     const token = await getAccessTokenSilently();
-    const response = await fetch(path, {
+    const response = await apiFetch(path, {
       ...options,
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
@@ -47,10 +48,10 @@ export default function Calendar() {
       try {
         const token = await getAccessTokenSilently();
         const headers = { Authorization: `Bearer ${token}` };
-        const calendarResponse = await fetch('/api/calendars/personal', { headers });
+        const calendarResponse = await apiFetch('/api/calendars/personal', { headers });
         if (!calendarResponse.ok) throw new Error('Could not load your personal calendar. Please try again.');
         const personal = await calendarResponse.json();
-        const eventsResponse = await fetch(`/api/calendar/events?calendarId=${encodeURIComponent(personal.id)}`, { headers });
+        const eventsResponse = await apiFetch(`/api/calendar/events?calendarId=${encodeURIComponent(personal.id)}`, { headers });
         if (!eventsResponse.ok) throw new Error('Could not load your events. Please try again.');
         const data: EventResponse[] = await eventsResponse.json();
         if (!cancelled) {

@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api';
 import { useEffect, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 
@@ -19,7 +20,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
     }
 
     async function loadCalendars() {
-        const res = await fetch('/api/calendars', { headers: await authHeaders() });
+        const res = await apiFetch('/api/calendars', { headers: await authHeaders() });
         if (!res.ok) return;
         const data = await res.json();
         setCalendars(data);
@@ -30,7 +31,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
 
     async function createCalendar() {
         if (!newName.trim()) return;
-        const res = await fetch('/api/calendars', {
+        const res = await apiFetch('/api/calendars', {
             method: 'POST', headers: await authHeaders(),
             body: JSON.stringify({ name: newName }),
         });
@@ -44,7 +45,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
 
     async function joinCalendar() {
         if (!joinCode.trim()) return;
-        const res = await fetch('/api/calendars/join', {
+        const res = await apiFetch('/api/calendars/join', {
             method: 'POST', headers: await authHeaders(),
             body: JSON.stringify({ code: joinCode.trim() }),
         });
@@ -60,7 +61,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
 
     async function createInvite() {
         if (!selectedId) return;
-        const res = await fetch(`/api/calendars/${selectedId}/invites`, {
+        const res = await apiFetch(`/api/calendars/${selectedId}/invites`, {
             method: 'POST', headers: await authHeaders(),
             body: JSON.stringify({ email: inviteEmail.trim() || null, role: 'Editor' }),
         });
