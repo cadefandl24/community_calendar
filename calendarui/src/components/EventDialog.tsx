@@ -47,7 +47,7 @@ export default function EventDialog({ event, initialDate, onSave, onDelete, onCl
         };
         onSave(next);
         onClose();
-    }
+    }//
 
     return (
         <dialog ref={dialog} className="event-dialog" aria-labelledby={headingId} onCancel={onClose}>
