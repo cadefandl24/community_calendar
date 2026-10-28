@@ -59,9 +59,7 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? new[] { "http://localhost:63566" };
-        policy.WithOrigins(origins)
+        policy.WithOrigins("http://localhost:63566") // your Vite port
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

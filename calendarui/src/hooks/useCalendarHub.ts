@@ -1,4 +1,3 @@
-import { apiUrl } from '../lib/api';
 import { useEffect, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 
@@ -19,7 +18,7 @@ export function useCalendarHub(
         if (!calendarId) return;
 
         const connection = new signalR.HubConnectionBuilder()
-            .withUrl(apiUrl('/hubs/calendar'), { accessTokenFactory: getToken })
+            .withUrl('/hubs/calendar', { accessTokenFactory: getToken })
             .withAutomaticReconnect()
             .build();
 
