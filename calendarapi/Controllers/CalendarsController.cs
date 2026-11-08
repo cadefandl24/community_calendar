@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CalendarAPI.Services;
+using CalendarAPI.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 [ApiController]
 [Route("api/calendars")]
@@ -9,14 +11,16 @@ using CalendarAPI.Services;
 public class CalendarsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IHubContext<CalendarHub> _hub;
     private readonly IClaimsService _claimsService;
     private string UserId => _claimsService.GetUserId() ?? throw new UnauthorizedAccessException();
     private string? UserEmail => _claimsService.GetUserEmail();
 
-    public CalendarsController(AppDbContext db, IClaimsService claimsService)
+    public CalendarsController(AppDbContext db, IClaimsService claimsService, IHubContext<CalendarHub> hub)
     {
         _db = db;
         _claimsService = claimsService;
+        _hub = hub;
     }
 
     // GET /api/calendars   -> every calendar I'm in, with my role
@@ -128,6 +132,37 @@ public class CalendarsController : ControllerBase
         var calendar = await _db.Calendars.FindAsync(invite.CalendarId);
         if (calendar == null) return NotFound(new { error = "Calendar no longer exists" });
         return Ok(ToDto(calendar, member.Role));
+    }
+
+    [HttpPatch("{id:guid}")]
+    public async Task<IActionResult> RenameCalendar(Guid id, [FromBody] RenameCalendarDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest(new { error = "name is required" });
+        if (await MyRoleAsync(id) != CalendarRole.Owner) return Forbid();
+
+        var cal = await _db.Calendars.FindAsync(id);
+        if (cal == null) return NotFound();
+
+        cal.Name = dto.Name.Trim();
+        await _db.SaveChangesAsync();
+
+        await _hub.Clients.Group(CalendarHub.GroupName(id))
+            .SendAsync("calendarRenamed", new { Id = id, cal.Name });
+        return Ok(ToDto(cal, CalendarRole.Owner));
+    }
+
+    // DELETE /api/calendars/{id}   (Owner only)
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteCalendar(Guid id)
+    {
+        if (await MyRoleAsync(id) != CalendarRole.Owner) return Forbid();
+
+        // DB cascade removes members, invites, events, and attendees
+        var deleted = await _db.Calendars.Where(c => c.CalendarId == id).ExecuteDeleteAsync();
+        if (deleted == 0) return NotFound();
+
+        await _hub.Clients.Group(CalendarHub.GroupName(id)).SendAsync("calendarDeleted", id);
+        return Ok(new { success = true });
     }
 
     private async Task<Calendar> CreateCalendarForMe(string name)
