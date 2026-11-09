@@ -81,7 +81,7 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
     updateEvent({ ...e, start, end });
 
   return (
-    <div style={{ height: 700, textAlign: 'left' }}>
+    <div className="community-scheduler" style={{ height: 700, textAlign: 'left' }}>
       <Scheduler
         events={events} view={view} onViewChange={setView}
         date={date} onDateChange={setDate}
