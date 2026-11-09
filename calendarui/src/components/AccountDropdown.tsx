@@ -1,15 +1,52 @@
+import { useAuth0 } from '@auth0/auth0-react';
 import type { User } from '@auth0/auth0-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
+import { API_URL } from '../lib/api';
 
 const itemClass = 'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left';
+const maxNameLength = 50;
+type AccountProfile = { displayName: string; email: string | null };
 
 export default function AccountDropdown({ user }: { user?: User }) {
-  const name = user?.name || user?.nickname || 'Account';
+  const { getAccessTokenSilently } = useAuth0();
+  const userId = user?.sub;
   const menuId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [draftName, setDraftName] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const name = profile?.displayName || user?.name || user?.nickname || 'Account';
+  const loadingProfile = Boolean(userId && !profile && !loadFailed);
+
+  useEffect(() => {
+    if (!userId) return;
+    const controller = new AbortController();
+
+    async function loadProfile() {
+      try {
+        const token = await getAccessTokenSilently();
+        const response = await fetch(`${API_URL}/api/account`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error('Profile request failed');
+        const account: AccountProfile = await response.json();
+        if (!controller.signal.aborted) setProfile(account);
+      } catch {
+        if (!controller.signal.aborted) setLoadFailed(true);
+      }
+    }
+
+    void loadProfile();
+    return () => controller.abort();
+  }, [getAccessTokenSilently, userId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -34,6 +71,39 @@ export default function AccountDropdown({ user }: { user?: User }) {
     };
   }, [isOpen]);
 
+  async function saveDisplayName(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!userId || loadingProfile || saving) return;
+
+    const displayName = (draftName ?? name).trim();
+    setSaved(false);
+    if (!displayName || displayName.length > maxNameLength) {
+      setSaveError(`Enter a display name between 1 and ${maxNameLength} characters.`);
+      return;
+    }
+
+    setSaving(true);
+    setSaveError('');
+    try {
+      const token = await getAccessTokenSilently();
+      const response = await fetch(`${API_URL}/api/account/name`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName }),
+      });
+      if (!response.ok) throw new Error('Display name request failed');
+      const account: AccountProfile = await response.json();
+      setProfile(account);
+      setLoadFailed(false);
+      setDraftName(null);
+      setSaved(true);
+    } catch {
+      setSaveError('Could not save your display name. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div ref={containerRef} className="relative min-w-0 text-left">
       <button
@@ -48,7 +118,7 @@ export default function AccountDropdown({ user }: { user?: User }) {
         className="flex w-64 max-w-full cursor-pointer items-center gap-3 rounded-lg bg-[#203e32] px-2.5 py-1.5 text-sm font-medium text-zinc-100 hover:bg-[#315c49] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
       >
         <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full border border-white/25 bg-white/10 text-white">
-          {name.charAt(0).toUpperCase()}
+          {Array.from(name)[0].toUpperCase()}
         </span>
         <span className="min-w-0 flex-1 truncate text-left">{name}</span>
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isOpen ? 'size-4 shrink-0 rotate-180' : 'size-4 shrink-0'}>
@@ -62,6 +132,7 @@ export default function AccountDropdown({ user }: { user?: User }) {
           <button
             type="button"
             aria-expanded={showProfile}
+            aria-controls={`${menuId}-profile`}
             onClick={() => setShowProfile(!showProfile)}
             className={`${itemClass} cursor-pointer hover:bg-[#315c49] focus-visible:outline-2 focus-visible:outline-sky-400`}
           >
@@ -72,18 +143,39 @@ export default function AccountDropdown({ user }: { user?: User }) {
             </svg>
             Profile
           </button>
-          {showProfile && (
-            <div className="px-4 py-2 text-sm break-words text-zinc-300">
-              {user?.email || 'No email available'}
-            </div>
-          )}
-          <button type="button" disabled className={`${itemClass} cursor-not-allowed text-zinc-400`}>
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="size-5 shrink-0">
-              <circle cx="9" cy="7" r="3.5" />
-              <path d="M3 21v-2a4 4 0 0 1 4-4h4m7 0v6m-3-3h6" />
-            </svg>
-            Invite users
-          </button>
+          <div id={`${menuId}-profile`} hidden={!showProfile} className="px-3 pb-3">
+            <p className="break-words py-2 text-zinc-300">{user?.email || profile?.email || 'No email available'}</p>
+            {userId && (
+              <form className="grid gap-2" onSubmit={saveDisplayName}>
+                <label htmlFor={`${menuId}-name`} className="font-medium">Display name</label>
+                <input
+                  id={`${menuId}-name`}
+                  value={draftName ?? name}
+                  onChange={event => {
+                    setDraftName(event.target.value);
+                    setSaveError('');
+                    setSaved(false);
+                  }}
+                  maxLength={maxNameLength}
+                  disabled={loadingProfile}
+                  readOnly={saving}
+                  required
+                  className="min-h-11 min-w-0 rounded-md border border-white/30 bg-[#fffdf8] px-3 py-2 text-base text-[#203e32] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+                />
+                <button
+                  type="submit"
+                  disabled={loadingProfile || saving}
+                  className="min-h-11 cursor-pointer justify-self-end rounded-md bg-[#fffdf8] px-4 font-medium text-[#203e32] hover:bg-[#e8ede4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-default disabled:opacity-60"
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+                {saveError && <p role="alert" className="text-red-200">{saveError}</p>}
+                <p role="status" className="text-zinc-200 empty:hidden">
+                  {loadingProfile ? 'Loading profile…' : loadFailed ? 'Could not load your saved profile.' : saved ? 'Display name saved.' : ''}
+                </p>
+              </form>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -14,7 +14,7 @@ export default function CalendarPage() {
   return (
     <main>
       <div className="flex items-start justify-between gap-3 px-5 pt-4">
-        <AccountDropdown user={user} />
+        <AccountDropdown key={user?.sub} user={user} />
         <button
           className="logout-button shrink-0"
           type="button"
