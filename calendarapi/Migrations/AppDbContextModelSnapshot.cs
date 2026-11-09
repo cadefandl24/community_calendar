@@ -189,6 +189,30 @@ namespace calendarapi.Migrations
                     b.ToTable("EventAttendees", "app");
                 });
 
+            modelBuilder.Entity("UserProfile", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserProfiles", "app");
+                });
+
             modelBuilder.Entity("CalendarInvite", b =>
                 {
                     b.HasOne("Calendar", null)

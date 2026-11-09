@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
     public DbSet<CalendarInvite> CalendarInvites { get; set; }
     public DbSet<Event> Events { get; set; }
     public DbSet<EventAttendee> EventAttendees { get; set; }
+    public DbSet<UserProfile> UserProfiles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -34,5 +35,8 @@ public class AppDbContext : DbContext
 
         b.Entity<CalendarMember>().Property(m => m.Role).HasConversion<string>();
         b.Entity<CalendarInvite>().Property(i => i.Role).HasConversion<string>();
+
+        b.Entity<UserProfile>().HasKey(p => p.UserId);
+        b.Entity<UserProfile>().Property(p => p.DisplayName).HasMaxLength(50);
     }
 }
