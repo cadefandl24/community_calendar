@@ -3,7 +3,13 @@ import type { FormEvent } from 'react';
 import type { CalendarEvent, CalendarProps } from 'calendarkit-pro';
 import './EventDialog.css';
 
-type Props = Omit<Parameters<NonNullable<CalendarProps['renderEventForm']>>[0], 'isOpen'>;
+type Props = Omit<Parameters<NonNullable<CalendarProps['renderEventForm']>>[0], 'isOpen'> & {
+    attendance?: {
+        going: boolean;
+        pending: boolean;
+        onChange: (going: boolean) => Promise<void>;
+    };
+};
 
 // datetime-local expects local wall time rather than a UTC ISO string.
 function localDateTime(date: Date) {
@@ -11,7 +17,7 @@ function localDateTime(date: Date) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export default function EventDialog({ event, initialDate, onSave, onDelete, onClose }: Props) {
+export default function EventDialog({ event, initialDate, onSave, onDelete, onClose, attendance }: Props) {
     const dialog = useRef<HTMLDialogElement>(null);
     const headingId = useId();
     const [title, setTitle] = useState(event?.title ?? '');
@@ -23,12 +29,25 @@ export default function EventDialog({ event, initialDate, onSave, onDelete, onCl
     const [recurrence, setRecurrence] = useState(event?.recurrence?.freq ?? '');
     const [reminder, setReminder] = useState(event?.reminders?.[0]?.time.toString() ?? '30');
     const [error, setError] = useState('');
+    const [attendanceError, setAttendanceError] = useState('');
 
     useEffect(() => {
         const element = dialog.current;
         element?.showModal();
         return () => element?.close();
     }, []);
+
+    async function toggleAttendance() {
+        if (!attendance || attendance.pending) return;
+        setAttendanceError('');
+        try {
+            await attendance.onChange(!attendance.going);
+        } catch {
+            setAttendanceError(attendance.going
+                ? 'Could not leave the event. Try again.'
+                : 'Could not join the event. Try again.');
+        }
+    }
 
     function save(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -57,6 +76,22 @@ export default function EventDialog({ event, initialDate, onSave, onDelete, onCl
                     <button className="event-dialog-close" type="button" aria-label="Close event form" onClick={onClose}>×</button>
                 </header>
                 <div className="event-dialog-body">
+                    {attendance && (
+                        <div className="event-dialog-attendance">
+                            <div className="event-dialog-attendance-row">
+                                <p role="status">{attendance.going ? 'You’re going' : 'You haven’t joined'}</p>
+                                <button
+                                    type="button"
+                                    className="event-dialog-attendance-button"
+                                    disabled={attendance.pending}
+                                    onClick={() => { void toggleAttendance(); }}
+                                >
+                                    {attendance.pending ? 'Updating…' : attendance.going ? 'Leave event' : 'Join event'}
+                                </button>
+                            </div>
+                            {attendanceError && <p className="event-dialog-error" role="alert">{attendanceError}</p>}
+                        </div>
+                    )}
                     <label className="event-field">Event title <input autoFocus required value={title} onChange={e => setTitle(e.target.value)} placeholder="What’s happening?" /></label>
                     <div className="event-time-row">
                         <label className="event-field">Starts <input type="datetime-local" required value={start} onChange={e => setStart(e.target.value)} /></label>

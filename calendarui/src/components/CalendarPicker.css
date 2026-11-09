@@ -231,3 +231,22 @@
     margin-top: 8px;
     overflow-wrap: anywhere;
 }
+
+.calendar-picker-members {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.calendar-picker-members li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    overflow-wrap: anywhere;
+}
+
+.calendar-picker-members li + li {
+    border-top: 1px solid var(--picker-line);
+}

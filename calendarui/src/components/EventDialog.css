@@ -25,6 +25,12 @@
 .event-dialog button { font: inherit; cursor: pointer; transition: background .15s; }
 .event-dialog-close { border: 0; background: #f0f1e9; color: #52624f; border-radius: 50%; width: 32px; height: 32px; flex-shrink: 0; font-size: 24px !important; line-height: 1; }
 .event-dialog-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px; display: grid; gap: 20px; }
+.event-dialog-attendance { padding: 10px 12px; border: 1px solid #dce1d6; border-radius: 9px; background: #f7f8f1; }
+.event-dialog-attendance-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.event-dialog-attendance .event-dialog-error { margin-top: 6px; }
+.event-dialog .event-dialog-attendance-button { min-height: 44px; padding: 8px 12px; border: 1px solid #658567; border-radius: 8px; color: #203e32; background: #fffdf8; font-weight: 600; }
+.event-dialog-attendance-button:hover:not(:disabled) { background: #e8ebdf; }
+.event-dialog-attendance-button:disabled { cursor: default; opacity: .65; }
 .event-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 12px; font-weight: 650; position: relative; }
 .event-field-optional { position: absolute; top: 0; right: 0; color: #8b9185; font-weight: 400; font-size: 11px; }
 .event-dialog input, .event-dialog textarea, .event-dialog select { width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid #dce1d6; border-radius: 9px; background: #fff; color: #203e32; font: 400 14px/1.5 system-ui, sans-serif; color-scheme: light; }

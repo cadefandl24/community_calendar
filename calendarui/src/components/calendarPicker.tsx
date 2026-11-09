@@ -2,12 +2,14 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { API_URL } from '../lib/api';
+import CalendarMembers from './CalendarMembers';
 import './CalendarPicker.css';
 
 type CalendarSummary = { id: string; name: string; role: string };
 type InviteInfo = { code: string; inviteeEmail: string | null };
 type Props = { selectedId: string | null; onSelect: (id: string | null) => void };
 type Action = 'create' | 'join' | 'invite' | 'rename';
+type Panel = Action | 'members';
 
 const actions = {
     create: {
@@ -56,7 +58,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
     const [calendars, setCalendars] = useState<CalendarSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
-    const [action, setAction] = useState<Action | null>(null);
+    const [action, setAction] = useState<Panel | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [deleteTarget, setDeleteTarget] = useState<CalendarSummary | null>(null);
@@ -65,7 +67,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
     const selectedCalendar = calendars.find(calendar => calendar.id === selectedId);
     const isOwner = selectedCalendar?.role === 'Owner';
     const canInvite = isOwner || selectedCalendar?.role === 'Editor';
-    const activeAction = action ? actions[action] : null;
+    const activeAction = action && action !== 'members' ? actions[action] : null;
     const inviteInfo = latestInvite?.calendarId === selectedId ? latestInvite : null;
     const controlsLocked = submitting || deleteTarget !== null;
 
@@ -97,7 +99,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
         if (!selectedId && calendars.length > 0) onSelect(calendars[0].id);
     }, [calendars, onSelect, selectedId]);
 
-    function resetPanel(nextAction: Action | null) {
+    function resetPanel(nextAction: Panel | null) {
         setAction(nextAction);
         setError('');
     }
@@ -214,7 +216,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                             value={selectedId ?? ''}
                             disabled={!calendars.length || controlsLocked}
                             onChange={event => {
-                                if (action === 'invite' || action === 'rename') resetPanel(null);
+                                if (action === 'invite' || action === 'rename' || action === 'members') resetPanel(null);
                                 setNotice('');
                                 onSelect(event.target.value);
                             }}
@@ -227,7 +229,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                             ))}
                         </select>
                         {selectedCalendar && <span className="calendar-picker-role">{selectedCalendar.role}</span>}
-                        {isOwner && (
+                        {selectedCalendar && (
                             <details
                                 ref={manage}
                                 className="calendar-picker-manage"
@@ -248,7 +250,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                                     aria-disabled={controlsLocked}
                                     onClick={event => { if (controlsLocked) event.preventDefault(); }}
                                 >
-                                    ⋯
+                                    Manage
                                 </summary>
                                 <div className="calendar-picker-menu">
                                     <button
@@ -258,24 +260,40 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                                             if (manage.current) manage.current.open = false;
                                             trigger.current = manageTrigger.current;
                                             setNotice('');
-                                            resetPanel('rename');
+                                            resetPanel('members');
                                         }}
                                     >
-                                        {actions.rename.button}
+                                        View members
                                     </button>
-                                    <button
-                                        type="button"
-                                        className="calendar-picker-menu-delete"
-                                        disabled={controlsLocked}
-                                        onClick={() => {
-                                            if (manage.current) manage.current.open = false;
-                                            resetPanel(null);
-                                            setNotice('');
-                                            setDeleteTarget(selectedCalendar);
-                                        }}
-                                    >
-                                        Delete calendar
-                                    </button>
+                                    {isOwner && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                disabled={controlsLocked}
+                                                onClick={() => {
+                                                    if (manage.current) manage.current.open = false;
+                                                    trigger.current = manageTrigger.current;
+                                                    setNotice('');
+                                                    resetPanel('rename');
+                                                }}
+                                            >
+                                                {actions.rename.button}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="calendar-picker-menu-delete"
+                                                disabled={controlsLocked}
+                                                onClick={() => {
+                                                    if (manage.current) manage.current.open = false;
+                                                    resetPanel(null);
+                                                    setNotice('');
+                                                    setDeleteTarget(selectedCalendar);
+                                                }}
+                                            >
+                                                Delete calendar
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </details>
                         )}
@@ -304,6 +322,15 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
             </div>
             {loadFailed && <p className="calendar-picker-error" role="alert">Could not load your calendars.</p>}
             <p className="calendar-picker-notice" role="status">{notice}</p>
+            {action === 'members' && selectedCalendar && (
+                <CalendarMembers
+                    key={selectedCalendar.id}
+                    id={`${id}-panel`}
+                    calendarId={selectedCalendar.id}
+                    calendarName={selectedCalendar.name}
+                    onClose={closePanel}
+                />
+            )}
             {deleteTarget && (
                 <form
                     className="calendar-picker-confirm"

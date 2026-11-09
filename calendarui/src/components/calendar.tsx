@@ -44,8 +44,10 @@ function LocalTime() {
 }
 
 export default function Calendar({ calendarId }: { calendarId: string }) {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, user } = useAuth0();
+  const userId = user?.sub;
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [attendancePending, setAttendancePending] = useState(false);
   const [eventStatus, setEventStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [sidebarContent, setSidebarContent] = useState<Element | null>(null);
   const [view, setView] = useState<ViewType>('month');
@@ -119,6 +121,22 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
     await api(`/event/${id}`, { method: 'DELETE' }).catch(console.error);
   }
 
+  async function changeAttendance(eventId: string, going: boolean) {
+    if (attendancePending || !userId) return;
+
+    setAttendancePending(true);
+    try {
+      const updated: EventDto = await api(`/event/${eventId}/attend`, {
+        method: going ? 'POST' : 'DELETE',
+      });
+      setEvents(current => current.map(event => event.id === updated.id
+        ? { ...event, attendeeIds: updated.attendeeIds }
+        : event));
+    } finally {
+      setAttendancePending(false);
+    }
+  }
+
   const moveEvent = (e: CalendarEvent, start: Date, end: Date) =>
     updateEvent({ ...e, start, end });
 
@@ -131,7 +149,21 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
           date={date} onDateChange={setDate}
           onEventCreate={createEvent} onEventUpdate={updateEvent}
           onEventDelete={deleteEvent} onEventDrop={moveEvent} onEventResize={moveEvent}
-          renderEventForm={({ isOpen, ...props }) => (isOpen ? <EventDialog {...props} /> : null)}
+          renderEventForm={({ isOpen, ...props }) => {
+            if (!isOpen) return null;
+            const event = events.find(item => item.id === props.event?.id);
+            const attendeeIds: string[] = event?.attendeeIds ?? [];
+            return (
+              <EventDialog
+                {...props}
+                attendance={event && userId ? {
+                  going: attendeeIds.includes(userId),
+                  pending: attendancePending,
+                  onChange: going => changeAttendance(event.id, going),
+                } : undefined}
+              />
+            );
+          }}
         />
         {sidebarContent && createPortal(<UpcomingEvents events={events} status={eventStatus} />, sidebarContent)}
       </div>
