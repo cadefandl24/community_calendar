@@ -33,12 +33,6 @@ public class CalendarsController : ControllerBase
                 new { Id = c.CalendarId, c.Name, c.OwnerUserId, m.Role })
             .ToListAsync();
 
-        if (calendars.Count == 0)
-        {
-            var cal = await CreateCalendarForMe("My Calendar");
-            return Ok(new[] { ToDto(cal, CalendarRole.Owner) });
-        }
-
         return Ok(calendars.Select(c => new { c.Id, c.Name, c.OwnerUserId, Role = c.Role.ToString() }));
     }
 
