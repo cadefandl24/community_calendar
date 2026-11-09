@@ -1,0 +1,149 @@
+.calendar-picker {
+    --picker-ink: #203e32;
+    --picker-line: #aab7aa;
+    --picker-field: #fffdf8;
+    margin: 0 clamp(12px, 3vw, 24px) 16px;
+    padding: clamp(12px, 3vw, 20px);
+    border: 1px solid var(--picker-line);
+    border-radius: 12px;
+    background: #f8f6ee;
+    color: var(--picker-ink);
+    text-align: left;
+    font-size: 1rem;
+}
+
+.calendar-picker-toolbar,
+.calendar-picker-selection,
+.calendar-picker-actions,
+.calendar-picker-panel-heading,
+.calendar-picker-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.calendar-picker-toolbar {
+    justify-content: space-between;
+    align-items: end;
+    gap: 12px;
+}
+
+.calendar-picker-current {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.calendar-picker label {
+    display: block;
+    margin-bottom: 4px;
+    color: #4c6054;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.calendar-picker button,
+.calendar-picker input,
+.calendar-picker select {
+    min-height: 44px;
+    max-width: 100%;
+    border: 1px solid var(--picker-line);
+    border-radius: 8px;
+    background: var(--picker-field);
+    color: inherit;
+    padding: 8px 12px;
+}
+
+.calendar-picker select {
+    appearance: auto;
+    min-width: 0;
+}
+
+.calendar-picker-selection {
+    flex-wrap: nowrap;
+}
+
+.calendar-picker button {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.calendar-picker button:hover,
+.calendar-picker button[aria-expanded="true"] {
+    background: #e8ede4;
+}
+
+.calendar-picker .calendar-picker-primary {
+    border-color: var(--picker-ink);
+    background: var(--picker-ink);
+    color: white;
+}
+
+.calendar-picker .calendar-picker-primary:hover,
+.calendar-picker .calendar-picker-primary[aria-expanded="true"] {
+    background: #315c49;
+}
+
+.calendar-picker button:disabled,
+.calendar-picker button[aria-disabled="true"] {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.calendar-picker button:focus-visible,
+.calendar-picker input:focus-visible,
+.calendar-picker select:focus-visible {
+    outline: 2px solid var(--picker-ink);
+    outline-offset: 2px;
+}
+
+.calendar-picker-role {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #e6ece1;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.calendar-picker-panel {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--picker-line);
+}
+
+.calendar-picker-panel-heading {
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    margin-bottom: 8px;
+}
+
+.calendar-picker-panel-heading h2 {
+    margin: 0;
+    color: inherit;
+    font-size: 1.1rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
+.calendar-picker .calendar-picker-close {
+    flex: 0 0 44px;
+    border-color: transparent;
+    background: transparent;
+    font-size: 1.4rem;
+}
+
+.calendar-picker-fields input {
+    flex: 1 1 200px;
+    min-width: 0;
+}
+
+.calendar-picker-error,
+.calendar-picker-code {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+}
+
+.calendar-picker-error {
+    color: #9c3025;
+}
