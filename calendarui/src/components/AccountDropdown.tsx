@@ -9,11 +9,12 @@ const maxNameLength = 50;
 type AccountProfile = { displayName: string; email: string | null };
 
 export default function AccountDropdown({ user }: { user?: User }) {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, logout } = useAuth0();
   const userId = user?.sub;
   const menuId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
@@ -22,6 +23,9 @@ export default function AccountDropdown({ user }: { user?: User }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const name = profile?.displayName || user?.name || user?.nickname || 'Account';
   const loadingProfile = Boolean(userId && !profile && !loadFailed);
 
@@ -56,7 +60,7 @@ export default function AccountDropdown({ user }: { user?: User }) {
     }
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || deleteDialogRef.current?.open) return;
       setIsOpen(false);
       if (containerRef.current?.contains(document.activeElement)) {
         triggerRef.current?.focus();
@@ -101,6 +105,37 @@ export default function AccountDropdown({ user }: { user?: User }) {
       setSaveError('Could not save your display name. Try again.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function logoutAfterDelete() {
+    setDeleteError('');
+    try {
+      await logout({ logoutParams: { returnTo: window.location.origin } });
+    } catch {
+      setDeleteError('Your data was deleted. Log out to finish.');
+    }
+  }
+
+  async function deleteAccountData(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!userId || loadingProfile || saving || deleting || deleted) return;
+
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const token = await getAccessTokenSilently();
+      const response = await fetch(`${API_URL}/api/account`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Account deletion request failed');
+      setDeleted(true);
+      await logoutAfterDelete();
+    } catch {
+      setDeleteError('Could not confirm deletion. Try again.');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -175,9 +210,73 @@ export default function AccountDropdown({ user }: { user?: User }) {
                 </p>
               </form>
             )}
+            {userId && (
+              <div className="mt-3 border-t border-white/20 pt-2">
+                <button
+                  type="button"
+                  disabled={loadingProfile || saving || deleting || deleted}
+                  className="min-h-11 cursor-pointer rounded-md text-left font-medium text-red-200 hover:text-red-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-200 disabled:cursor-default disabled:opacity-60"
+                  onClick={() => {
+                    setDeleteError('');
+                    deleteDialogRef.current?.showModal();
+                  }}
+                >
+                  Delete account data
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
+      <dialog
+        ref={deleteDialogRef}
+        aria-labelledby={`${menuId}-delete-title`}
+        aria-describedby={`${menuId}-delete-description`}
+        className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-md overflow-y-auto rounded-xl border border-[#aab7aa] bg-[#fffdf8] p-5 text-left text-sm text-[#203e32] shadow-xl backdrop:bg-black/40"
+        onCancel={event => { if (deleting || deleted) event.preventDefault(); }}
+      >
+        <form onSubmit={deleteAccountData}>
+          <h2 id={`${menuId}-delete-title`} className="text-lg font-semibold">
+            {deleted ? 'Account data deleted' : 'Delete account data?'}
+          </h2>
+          <p id={`${menuId}-delete-description`}>
+            {deleted
+              ? 'You’ll be signed out.'
+              : 'This permanently deletes your profile, calendars you own and their events, memberships, RSVPs, and unused invites you created. Other members will lose access to any shared calendars you own. Your sign-in account will still exist.'}
+          </p>
+          {deleteError && <p role="alert" className="mt-3 text-red-800">{deleteError}</p>}
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            {deleted ? (
+              <button
+                type="button"
+                disabled={deleting}
+                className="min-h-11 rounded-md bg-[#203e32] px-4 font-medium text-white disabled:opacity-60"
+                onClick={() => { void logoutAfterDelete(); }}
+              >
+                Log out
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  className="min-h-11 rounded-md border border-[#aab7aa] px-4 font-medium disabled:opacity-60"
+                  onClick={() => deleteDialogRef.current?.close()}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleting}
+                  className="min-h-11 rounded-md bg-red-800 px-4 font-medium text-white hover:bg-red-900 disabled:opacity-60"
+                >
+                  {deleting ? 'Deleting…' : 'Delete account data'}
+                </button>
+              </>
+            )}
+          </div>
+        </form>
+      </dialog>
     </div>
   );
 }
