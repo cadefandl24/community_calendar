@@ -62,6 +62,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [deleteTarget, setDeleteTarget] = useState<CalendarSummary | null>(null);
+    const [leaveTarget, setLeaveTarget] = useState<CalendarSummary | null>(null);
     const [notice, setNotice] = useState('');
     const [latestInvite, setLatestInvite] = useState<(InviteInfo & { calendarId: string | null }) | null>(null);
     const selectedCalendar = calendars.find(calendar => calendar.id === selectedId);
@@ -69,7 +70,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
     const canInvite = isOwner || selectedCalendar?.role === 'Editor';
     const activeAction = action && action !== 'members' ? actions[action] : null;
     const inviteInfo = latestInvite?.calendarId === selectedId ? latestInvite : null;
-    const controlsLocked = submitting || deleteTarget !== null;
+    const controlsLocked = submitting || deleteTarget !== null || leaveTarget !== null;
 
     useEffect(() => {
         const controller = new AbortController();
@@ -146,6 +147,42 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
         }
     }
 
+    function cancelLeave() {
+    if (submitting) return;
+    setLeaveTarget(null);
+    setError('');
+    manageTrigger.current?.focus();
+    }
+
+    async function leaveCalendar(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (!leaveTarget || submitting) return;
+
+        setSubmitting(true);
+        setError('');
+        try {
+            const token = await getAccessTokenSilently();
+            const response = await fetch(`${API_URL}/api/calendars/${leaveTarget.id}/members/me`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!response.ok) throw new Error('Leave failed');
+
+            const index = calendars.findIndex(calendar => calendar.id === leaveTarget.id);
+            const remaining = calendars.filter(calendar => calendar.id !== leaveTarget.id);
+            const nextCalendar = remaining[index] ?? remaining.at(-1);
+            setCalendars(remaining);
+            onSelect(nextCalendar?.id ?? null);
+            setLatestInvite(invite => invite?.calendarId === leaveTarget.id ? null : invite);
+            setLeaveTarget(null);
+            setNotice(`You left “${leaveTarget.name}”.`);
+            newCalendarButton.current?.focus();
+        } catch {
+            setError('Could not leave the calendar. Try again.');
+        } finally {
+            setSubmitting(false);
+        }
+}
     async function submitAction(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!action || !activeAction || submitting) return;
@@ -265,6 +302,22 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                                     >
                                         View members
                                     </button>
+
+                                    {!isOwner && (
+                                        <button
+                                            type="button"
+                                            className="calendar-picker-menu-delete"
+                                            disabled={controlsLocked}
+                                            onClick={() => {
+                                                if (manage.current) manage.current.open = false;
+                                                resetPanel(null);
+                                                setNotice('');
+                                                setLeaveTarget(selectedCalendar);
+                                            }}
+                                        >
+                                            Leave calendar
+                                        </button>
+                                    )}
                                     {isOwner && (
                                         <>
                                             <button
@@ -346,6 +399,25 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                         <button ref={focusControl} type="button" disabled={submitting} onClick={cancelDelete}>Cancel</button>
                         <button type="submit" className="calendar-picker-danger" disabled={submitting}>
                             {submitting ? 'Deleting…' : 'Delete calendar'}
+                        </button>
+                    </div>
+                </form>
+            )}
+            {leaveTarget && (
+                <form
+                    className="calendar-picker-confirm"
+                    aria-labelledby={`${id}-leave-title`}
+                    aria-describedby={`${id}-leave-description`}
+                    onSubmit={leaveCalendar}
+                    onKeyDown={event => { if (event.key === 'Escape') cancelLeave(); }}
+                >
+                    <h2 id={`${id}-leave-title`}>Leave “{leaveTarget.name}”?</h2>
+                    <p id={`${id}-leave-description`}>You’ll lose access to this calendar and its events. You’ll need a new invite to rejoin.</p>
+                    {error && <p className="calendar-picker-error" role="alert">{error}</p>}
+                    <div className="calendar-picker-confirm-actions">
+                        <button ref={focusControl} type="button" disabled={submitting} onClick={cancelLeave}>Cancel</button>
+                        <button type="submit" className="calendar-picker-danger" disabled={submitting}>
+                            {submitting ? 'Leaving…' : 'Leave calendar'}
                         </button>
                     </div>
                 </form>
