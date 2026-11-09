@@ -2,6 +2,7 @@
     --picker-ink: #203e32;
     --picker-line: #aab7aa;
     --picker-field: #fffdf8;
+    --picker-danger: #9c3025;
     margin: 0 clamp(12px, 3vw, 24px) 16px;
     padding: clamp(12px, 3vw, 20px);
     border: 1px solid var(--picker-line);
@@ -44,7 +45,8 @@
 
 .calendar-picker button,
 .calendar-picker input,
-.calendar-picker select {
+.calendar-picker select,
+.calendar-picker summary {
     min-height: 44px;
     max-width: 100%;
     border: 1px solid var(--picker-line);
@@ -85,14 +87,15 @@
 }
 
 .calendar-picker button:disabled,
-.calendar-picker button[aria-disabled="true"] {
+.calendar-picker [aria-disabled="true"] {
     opacity: 0.6;
     cursor: default;
 }
 
 .calendar-picker button:focus-visible,
 .calendar-picker input:focus-visible,
-.calendar-picker select:focus-visible {
+.calendar-picker select:focus-visible,
+.calendar-picker summary:focus-visible {
     outline: 2px solid var(--picker-ink);
     outline-offset: 2px;
 }
@@ -145,5 +148,75 @@
 }
 
 .calendar-picker-error {
-    color: #9c3025;
+    color: var(--picker-danger);
+}
+
+.calendar-picker-manage {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.calendar-picker-manage summary {
+    display: grid;
+    min-width: 44px;
+    place-items: center;
+    list-style: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+
+.calendar-picker-manage summary::-webkit-details-marker {
+    display: none;
+}
+
+.calendar-picker-menu {
+    position: absolute;
+    z-index: 10;
+    inset-inline-end: 0;
+    top: calc(100% + 6px);
+    white-space: nowrap;
+}
+
+.calendar-picker-menu button {
+    color: var(--picker-danger);
+    box-shadow: 0 4px 12px #203e3224;
+}
+
+.calendar-picker-confirm {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid var(--picker-line);
+    border-radius: 10px;
+    background: var(--picker-field);
+}
+
+.calendar-picker-confirm h2 {
+    margin: 0 0 6px;
+    color: inherit;
+    font-size: 1.1rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
+.calendar-picker-confirm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.calendar-picker .calendar-picker-danger {
+    border-color: var(--picker-danger);
+    background: var(--picker-danger);
+    color: white;
+}
+
+.calendar-picker .calendar-picker-danger:hover:not(:disabled) {
+    background: #7c241d;
+}
+
+.calendar-picker-notice:not(:empty) {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
 }
