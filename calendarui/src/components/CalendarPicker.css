@@ -174,12 +174,23 @@
     z-index: 10;
     inset-inline-end: 0;
     top: calc(100% + 6px);
+    display: grid;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid var(--picker-line);
+    border-radius: 8px;
+    background: var(--picker-field);
+    box-shadow: 0 4px 12px #203e3224;
     white-space: nowrap;
 }
 
-.calendar-picker-menu button {
+.calendar-picker .calendar-picker-menu button {
+    border: 0;
+    text-align: start;
+}
+
+.calendar-picker .calendar-picker-menu-delete {
     color: var(--picker-danger);
-    box-shadow: 0 4px 12px #203e3224;
 }
 
 .calendar-picker-confirm {

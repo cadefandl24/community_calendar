@@ -7,7 +7,7 @@ import './CalendarPicker.css';
 type CalendarSummary = { id: string; name: string; role: string };
 type InviteInfo = { code: string; inviteeEmail: string | null };
 type Props = { selectedId: string | null; onSelect: (id: string | null) => void };
-type Action = 'create' | 'join' | 'invite';
+type Action = 'create' | 'join' | 'invite' | 'rename';
 
 const actions = {
     create: {
@@ -31,6 +31,13 @@ const actions = {
         submit: 'Generate invite code',
         error: 'Could not generate an invite code. Try again.',
     },
+    rename: {
+        button: 'Rename calendar',
+        label: 'Calendar name',
+        placeholder: 'Enter a calendar name',
+        submit: 'Save name',
+        error: 'Could not rename the calendar. Try again.',
+    },
 };
 
 const actionOrder: Action[] = ['create', 'join', 'invite'];
@@ -42,7 +49,7 @@ function focusControl(control: HTMLElement | null) {
 export default function CalendarPicker({ selectedId, onSelect }: Props) {
     const { getAccessTokenSilently } = useAuth0();
     const id = useId();
-    const trigger = useRef<HTMLButtonElement>(null);
+    const trigger = useRef<HTMLElement>(null);
     const manage = useRef<HTMLDetailsElement>(null);
     const manageTrigger = useRef<HTMLElement>(null);
     const newCalendarButton = useRef<HTMLButtonElement>(null);
@@ -56,7 +63,8 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
     const [notice, setNotice] = useState('');
     const [latestInvite, setLatestInvite] = useState<(InviteInfo & { calendarId: string | null }) | null>(null);
     const selectedCalendar = calendars.find(calendar => calendar.id === selectedId);
-    const canInvite = selectedCalendar?.role === 'Owner' || selectedCalendar?.role === 'Editor';
+    const isOwner = selectedCalendar?.role === 'Owner';
+    const canInvite = isOwner || selectedCalendar?.role === 'Editor';
     const activeAction = action ? actions[action] : null;
     const inviteInfo = latestInvite?.calendarId === selectedId ? latestInvite : null;
     const controlsLocked = submitting || deleteTarget !== null;
@@ -140,6 +148,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
         event.preventDefault();
         if (!action || !activeAction || submitting) return;
         if (action === 'invite' && !canInvite) return;
+        if (action === 'rename' && !isOwner) return;
 
         const form = event.currentTarget;
         const value = String(new FormData(form).get('value') ?? '').trim();
@@ -158,13 +167,14 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
             path += `/${selectedId}/invites`;
             body = { email: value || null, role: 'Editor' };
         }
+        if (action === 'rename') path += `/${selectedId}`;
 
         setSubmitting(true);
         setError('');
         try {
             const token = await getAccessTokenSilently();
             const response = await fetch(`${API_URL}${path}`, {
-                method: 'POST',
+                method: action === 'rename' ? 'PATCH' : 'POST',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
             });
@@ -179,7 +189,11 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                 setCalendars(current => current.some(item => item.id === calendar.id)
                     ? current.map(item => item.id === calendar.id ? calendar : item)
                     : [...current, calendar]);
-                onSelect(calendar.id);
+                if (action === 'rename') {
+                    setNotice(`Calendar renamed to “${calendar.name}”.`);
+                } else {
+                    onSelect(calendar.id);
+                }
                 closePanel();
             }
         } catch {
@@ -200,7 +214,8 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                             value={selectedId ?? ''}
                             disabled={!calendars.length || controlsLocked}
                             onChange={event => {
-                                if (action === 'invite') resetPanel(null);
+                                if (action === 'invite' || action === 'rename') resetPanel(null);
+                                setNotice('');
                                 onSelect(event.target.value);
                             }}
                         >
@@ -212,7 +227,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                             ))}
                         </select>
                         {selectedCalendar && <span className="calendar-picker-role">{selectedCalendar.role}</span>}
-                        {selectedCalendar?.role === 'Owner' && (
+                        {isOwner && (
                             <details
                                 ref={manage}
                                 className="calendar-picker-manage"
@@ -238,6 +253,19 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                                 <div className="calendar-picker-menu">
                                     <button
                                         type="button"
+                                        disabled={controlsLocked}
+                                        onClick={() => {
+                                            if (manage.current) manage.current.open = false;
+                                            trigger.current = manageTrigger.current;
+                                            setNotice('');
+                                            resetPanel('rename');
+                                        }}
+                                    >
+                                        {actions.rename.button}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="calendar-picker-menu-delete"
                                         disabled={controlsLocked}
                                         onClick={() => {
                                             if (manage.current) manage.current.open = false;
@@ -328,6 +356,7 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
                             name="value"
                             type={action === 'invite' ? 'email' : 'text'}
                             placeholder={activeAction.placeholder}
+                            defaultValue={action === 'rename' ? selectedCalendar?.name : undefined}
                             required={action !== 'invite'}
                             readOnly={submitting}
                         />
