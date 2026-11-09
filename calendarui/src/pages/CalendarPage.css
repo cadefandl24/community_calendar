@@ -28,7 +28,23 @@
   outline-offset: 5px;
 }
 
-/* CalendarKit renders its default calendar list inside the sidebar. */
-.community-scheduler .rounded-2xl:has(> .space-y-1 input[data-cal-id]) {
+/* Hide CalendarKit's default calendar list and timezone picker. */
+.community-scheduler .rounded-2xl:has(> .space-y-1 input[data-cal-id]),
+.community-scheduler .mt-auto > .rounded-2xl:has(> .relative > button[class~="bg-blue-200/40"]) {
   display: none;
+}
+
+.community-scheduler .community-scheduler-time {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 12px;
+  padding: 8px 20px;
+  color: #203e32;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.community-scheduler-time span:first-child {
+  font-weight: 600;
 }

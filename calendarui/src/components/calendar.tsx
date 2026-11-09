@@ -18,6 +18,29 @@ const fromDto = (e: EventDto): CalendarEvent => ({
   createdBy: e.createdBy, attendeeIds: e.attendeeIds,
 } as CalendarEvent);
 
+const localTimeFormat = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZoneName: 'short',
+});
+
+function LocalTime() {
+  const [time, setTime] = useState(() => localTimeFormat.format(new Date()));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setTime(localTimeFormat.format(new Date())), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <p className="community-scheduler-time">
+      <span>Local time</span>
+      <span>{time}</span>
+    </p>
+  );
+}
+
 export default function Calendar({ calendarId }: { calendarId: string }) {
   const { getAccessTokenSilently } = useAuth0();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -81,14 +104,17 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
     updateEvent({ ...e, start, end });
 
   return (
-    <div className="community-scheduler" style={{ height: 700, textAlign: 'left' }}>
-      <Scheduler
-        events={events} view={view} onViewChange={setView}
-        date={date} onDateChange={setDate}
-        onEventCreate={createEvent} onEventUpdate={updateEvent}
-        onEventDelete={deleteEvent} onEventDrop={moveEvent} onEventResize={moveEvent}
-        renderEventForm={({ isOpen, ...props }) => (isOpen ? <EventDialog {...props} /> : null)}
-      />
+    <div className="community-scheduler" style={{ textAlign: 'left' }}>
+      <LocalTime />
+      <div style={{ height: 700 }}>
+        <Scheduler
+          events={events} view={view} onViewChange={setView}
+          date={date} onDateChange={setDate}
+          onEventCreate={createEvent} onEventUpdate={updateEvent}
+          onEventDelete={deleteEvent} onEventDrop={moveEvent} onEventResize={moveEvent}
+          renderEventForm={({ isOpen, ...props }) => (isOpen ? <EventDialog {...props} /> : null)}
+        />
+      </div>
     </div>
   );
 }
