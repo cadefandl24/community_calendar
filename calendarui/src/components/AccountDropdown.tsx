@@ -242,7 +242,7 @@ export default function AccountDropdown({ user }: { user?: User }) {
           <p id={`${menuId}-delete-description`}>
             {deleted
               ? 'You’ll be signed out.'
-              : 'This permanently deletes your profile, calendars you own and their events, memberships, RSVPs, and unused invites you created. Other members will lose access to any shared calendars you own. Your sign-in account will still exist.'}
+              : 'This permanently deletes your profile, calendars you own and their events. Your sign-in account will still exist (Until this is updated).'}
           </p>
           {deleteError && <p role="alert" className="mt-3 text-red-800">{deleteError}</p>}
           <div className="mt-4 flex flex-wrap justify-end gap-2">
