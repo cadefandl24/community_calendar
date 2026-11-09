@@ -57,12 +57,32 @@ public class CalendarsController : ControllerBase
     {
         if (await MyRoleAsync(id) == null) return Forbid();
 
+        // Previous members query, before including display names.
+        /*
         var members = await _db.CalendarMembers
             .Where(m => m.CalendarId == id)
             .OrderBy(m => m.JoinedAt)
             .Select(m => new { m.UserId, m.Email, m.Role, m.JoinedAt })
             .ToListAsync();
         return Ok(members.Select(m => new { m.UserId, m.Email, Role = m.Role.ToString(), m.JoinedAt }));
+        */
+
+        var members = await (
+            from member in _db.CalendarMembers
+            where member.CalendarId == id
+            join profile in _db.UserProfiles on member.UserId equals profile.UserId into profiles
+            from profile in profiles.DefaultIfEmpty()
+            orderby member.JoinedAt
+            select new
+            {
+                member.UserId,
+                member.Email,
+                member.Role,
+                member.JoinedAt,
+                DisplayName = profile == null ? null : profile.DisplayName
+            }
+        ).ToListAsync();
+        return Ok(members.Select(m => new { m.UserId, m.Email, Role = m.Role.ToString(), m.JoinedAt, m.DisplayName }));
     }
 
     // PATCH /api/calendars/{id}/members/{userId}   body: { "role": "Editor" }   (Owner only)

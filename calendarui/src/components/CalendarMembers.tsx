@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { API_URL } from '../lib/api';
 
-type Member = { userId: string; email: string | null; role: string };
+type Member = { userId: string; displayName: string | null; role: string };
 type Props = {
     id: string;
     calendarId: string;
@@ -63,7 +63,7 @@ export default function CalendarMembers({ id, calendarId, calendarName, onClose 
                 <ul className="calendar-picker-members">
                     {members.map(member => (
                         <li key={member.userId}>
-                            <span>{member.email || 'Email unavailable'}</span>
+                            <span>{member.displayName?.trim() || 'Calendar member'}</span>
                             <span className="calendar-picker-role">{member.role}</span>
                         </li>
                     ))}
