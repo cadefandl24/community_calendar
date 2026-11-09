@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Scheduler } from 'calendarkit-pro';
 import type { CalendarEvent, ViewType } from 'calendarkit-pro';
 import EventDialog from './EventDialog';
+import UpcomingEvents from './UpcomingEvents';
 import { useCalendarHub } from '../hooks/useCalendarHub';
 import { API_URL } from '../lib/api';
 
@@ -44,8 +46,15 @@ function LocalTime() {
 export default function Calendar({ calendarId }: { calendarId: string }) {
   const { getAccessTokenSilently } = useAuth0();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [eventStatus, setEventStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [sidebarContent, setSidebarContent] = useState<Element | null>(null);
   const [view, setView] = useState<ViewType>('month');
   const [date, setDate] = useState(new Date());
+
+  const findSidebarContent = useCallback((element: HTMLDivElement | null) => {
+    // CalendarKit has no sidebar content slot. Mount below its mini calendar.
+    setSidebarContent(element?.querySelector('.space-y-5:has(> .rounded-2xl input[data-cal-id])') ?? null);
+  }, []);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     const token = await getAccessTokenSilently();
@@ -58,9 +67,19 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
   }, [getAccessTokenSilently]);
 
   useEffect(() => {
-    api(`/events?calendarId=${encodeURIComponent(calendarId)}`)
-      .then((data: EventDto[]) => setEvents(data.map(fromDto)))
-      .catch(console.error);
+    const controller = new AbortController();
+    api(`/events?calendarId=${encodeURIComponent(calendarId)}`, { signal: controller.signal })
+      .then((data: EventDto[]) => {
+        if (controller.signal.aborted) return;
+        setEvents(data.map(fromDto));
+        setEventStatus('ready');
+      })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        setEventStatus('error');
+        console.error(error);
+      });
+    return () => controller.abort();
   }, [api, calendarId]);
 
   const upsert = (e: CalendarEvent) =>
@@ -106,7 +125,7 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
   return (
     <div className="community-scheduler" style={{ textAlign: 'left' }}>
       <LocalTime />
-      <div style={{ height: 700 }}>
+      <div ref={findSidebarContent} style={{ height: 700 }}>
         <Scheduler
           events={events} view={view} onViewChange={setView}
           date={date} onDateChange={setDate}
@@ -114,6 +133,7 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
           onEventDelete={deleteEvent} onEventDrop={moveEvent} onEventResize={moveEvent}
           renderEventForm={({ isOpen, ...props }) => (isOpen ? <EventDialog {...props} /> : null)}
         />
+        {sidebarContent && createPortal(<UpcomingEvents events={events} status={eventStatus} />, sidebarContent)}
       </div>
     </div>
   );
