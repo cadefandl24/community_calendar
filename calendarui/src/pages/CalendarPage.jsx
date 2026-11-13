@@ -12,6 +12,7 @@ export default function CalendarPage() {
   const [hasCalendars, setHasCalendars] = useState(null);   // null = still checking
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarId, setCalendarId] = useState(null);
+  const [role, setRole] = useState(null);   // my role in the selected calendar
 
   // Ask the API once whether this user already has any calendars
   useEffect(() => {
@@ -56,8 +57,8 @@ export default function CalendarPage() {
         <p>Loading your calendars…</p>
       ) : showPicker ? (
         <>
-          <CalendarPicker selectedId={calendarId} onSelect={setCalendarId} />
-          {calendarId && <Calendar key={calendarId} calendarId={calendarId} />}
+          <CalendarPicker selectedId={calendarId} onSelect={setCalendarId} onRoleChange={setRole} />
+          {calendarId && <Calendar key={calendarId} calendarId={calendarId} canEdit={role === 'Owner' || role === 'Editor'} />}
         </>
       ) : (
         <>

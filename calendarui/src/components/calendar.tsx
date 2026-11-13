@@ -4,6 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { Scheduler } from 'calendarkit-pro';
 import type { CalendarEvent, ViewType } from 'calendarkit-pro';
 import EventDialog from './EventDialog';
+import EventChat from './EventChat';
 import UpcomingEvents from './UpcomingEvents';
 import { useCalendarHub } from '../hooks/useCalendarHub';
 import { API_URL } from '../lib/api';
@@ -60,7 +61,13 @@ function LocalTime() {
   );
 }
 
-export default function Calendar({ calendarId }: { calendarId: string }) {
+// Closes the calendar's event form straight away (used when a Viewer clicks an empty time slot)
+function CloseImmediately({ onClose }: { onClose: () => void }) {
+  useEffect(() => { onClose(); }, [onClose]);
+  return null;
+}
+
+export default function Calendar({ calendarId, canEdit = false }: { calendarId: string; canEdit?: boolean }) {
   const { getAccessTokenSilently, user } = useAuth0();
   const userId = user?.sub;
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -106,10 +113,15 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
       ? prev.map(x => (x.id === e.id ? e : x))
       : [...prev, e]);
 
+  // Chat messages arriving over SignalR are passed on through this to whichever chat is open
+  const [chatBus] = useState(() => new EventTarget());
+
   useCalendarHub(calendarId, () => getAccessTokenSilently(), {
-    onEventCreated: e => upsert(fromDto(e)),
-    onEventUpdated: e => upsert(fromDto(e)),
+    onEventCreated: e => upsert(fromDto(e as EventDto)),
+    onEventUpdated: e => upsert(fromDto(e as EventDto)),
     onEventDeleted: id => setEvents(prev => prev.filter(x => x.id !== id)),
+    onMessageCreated: m => chatBus.dispatchEvent(new CustomEvent('messageCreated', { detail: m })),
+    onMessageDeleted: m => chatBus.dispatchEvent(new CustomEvent('messageDeleted', { detail: m })),
   });
 
   const body = (e: Partial<CalendarEvent>) => JSON.stringify({
@@ -125,7 +137,7 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
   });
 
   async function createEvent(e: Partial<CalendarEvent>) {
-    if (!e.title?.trim() || !e.start || !e.end) return;
+    if (!canEdit || !e.title?.trim() || !e.start || !e.end) return;
     try {
       const saved: EventDto = await api('/event', { method: 'POST', body: body(e) });
       upsert(fromDto(saved));
@@ -133,6 +145,7 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
   }
 
   async function updateEvent(changed: CalendarEvent) {
+    if (!canEdit) return;   // Viewers can't move, resize or edit events
     const id = seriesIdOf(changed.id);
     let e = changed;
 
@@ -155,6 +168,7 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
   }
 
   async function deleteEvent(id: string) {
+    if (!canEdit) return;
     const seriesId = seriesIdOf(id);   // deleting any repeat deletes the whole series
     setEvents(prev => prev.filter(x => x.id !== seriesId));
     await api(`/event/${seriesId}`, { method: 'DELETE' }).catch(console.error);
@@ -191,6 +205,8 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
           renderEventForm={({ isOpen, ...props }) => {
             if (!isOpen) return null;
             const event = events.find(item => item.id === seriesIdOf(props.event?.id));
+            // Viewers can't create events, so an empty-slot click closes the form again
+            if (!event && !canEdit) return <CloseImmediately onClose={props.onClose} />;
             const attendeeIds: string[] = event?.attendeeIds ?? [];
             return (
               <EventDialog
@@ -200,6 +216,10 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
                   pending: attendancePending,
                   onChange: going => changeAttendance(event.id, going),
                 } : undefined}
+                canEdit={canEdit}
+                chat={event ? (
+                  <EventChat key={event.id} eventId={String(event.id)} userId={userId} api={api} bus={chatBus} />
+                ) : undefined}
               />
             );
           }}

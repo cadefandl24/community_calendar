@@ -73,6 +73,9 @@ public class AccountController : ControllerBase
         await _db.CalendarInvites
             .Where(i => i.CreatedByUserId == userId && i.RedeemedAt == null)
             .ExecuteDeleteAsync();
+        // 5. Chat messages I wrote in other people's calendars
+        await _db.EventMessages.Where(m => m.UserId == userId).ExecuteDeleteAsync();
+        // 6. My profile
         await _db.UserProfiles.Where(p => p.UserId == userId).ExecuteDeleteAsync();
 
         await tx.CommitAsync();

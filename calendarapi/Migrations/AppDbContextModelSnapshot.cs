@@ -206,6 +206,36 @@ namespace calendarapi.Migrations
                     b.ToTable("EventAttendees", "app");
                 });
 
+            modelBuilder.Entity("EventMessage", b =>
+                {
+                    b.Property<Guid>("EventMessageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("EventMessageId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("EventId", "CreatedAt");
+
+                    b.ToTable("EventMessages", "app");
+                });
+
             modelBuilder.Entity("UserProfile", b =>
                 {
                     b.Property<string>("UserId")
@@ -258,6 +288,15 @@ namespace calendarapi.Migrations
                 });
 
             modelBuilder.Entity("EventAttendee", b =>
+                {
+                    b.HasOne("Event", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EventMessage", b =>
                 {
                     b.HasOne("Event", null)
                         .WithMany()

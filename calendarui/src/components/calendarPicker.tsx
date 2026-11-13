@@ -7,7 +7,12 @@ import './CalendarPicker.css';
 
 type CalendarSummary = { id: string; name: string; role: string };
 type InviteInfo = { code: string; inviteeEmail: string | null };
-type Props = { selectedId: string | null; onSelect: (id: string | null) => void };
+type Props = {
+    selectedId: string | null;
+    onSelect: (id: string | null) => void;
+    // Tells the page your role in the selected calendar ('Owner', 'Editor', 'Viewer'), or null
+    onRoleChange?: (role: string | null) => void;
+};
 type Action = 'create' | 'join' | 'invite' | 'rename';
 type Panel = Action | 'members';
 
@@ -48,7 +53,7 @@ function focusControl(control: HTMLElement | null) {
     control?.focus();
 }
 
-export default function CalendarPicker({ selectedId, onSelect }: Props) {
+export default function CalendarPicker({ selectedId, onSelect, onRoleChange }: Props) {
     const { getAccessTokenSilently } = useAuth0();
     const id = useId();
     const trigger = useRef<HTMLElement>(null);
@@ -68,6 +73,11 @@ export default function CalendarPicker({ selectedId, onSelect }: Props) {
     const selectedCalendar = calendars.find(calendar => calendar.id === selectedId);
     const isOwner = selectedCalendar?.role === 'Owner';
     const canInvite = isOwner || selectedCalendar?.role === 'Editor';
+    const selectedRole = selectedCalendar?.role ?? null;
+
+    useEffect(() => {
+        onRoleChange?.(selectedRole);
+    }, [selectedRole, onRoleChange]);
     const activeAction = action && action !== 'members' ? actions[action] : null;
     const inviteInfo = latestInvite?.calendarId === selectedId ? latestInvite : null;
     const controlsLocked = submitting || deleteTarget !== null || leaveTarget !== null;

@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<Event> Events { get; set; }
     public DbSet<EventAttendee> EventAttendees { get; set; }
     public DbSet<UserProfile> UserProfiles { get; set; }
+    public DbSet<EventMessage> EventMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -38,5 +39,11 @@ public class AppDbContext : DbContext
 
         b.Entity<UserProfile>().HasKey(p => p.UserId);
         b.Entity<UserProfile>().Property(p => p.DisplayName).HasMaxLength(50);
+
+        // Event chat: deleting an event deletes its messages; messages load newest-first per event
+        b.Entity<EventMessage>().HasOne<Event>().WithMany()
+            .HasForeignKey(m => m.EventId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<EventMessage>().HasIndex(m => new { m.EventId, m.CreatedAt });
+        b.Entity<EventMessage>().HasIndex(m => m.UserId);
     }
 }
