@@ -12,6 +12,7 @@ import { API_URL } from '../lib/api';
 type EventDto = {
   id: string; calendarId: string; title: string; start: string; end: string;
   allDay: boolean; description?: string | null; createdBy: string; attendeeIds: string[];
+  color?: string | null;
   recurrence?: {
     freq: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
     interval?: number | null; count?: number | null; until?: string | null;
@@ -22,6 +23,7 @@ const fromDto = (e: EventDto): CalendarEvent => ({
   id: e.id, title: e.title, start: new Date(e.start), end: new Date(e.end),
   allDay: e.allDay, description: e.description ?? undefined,
   createdBy: e.createdBy, attendeeIds: e.attendeeIds,
+  color: e.color ?? undefined,
   recurrence: e.recurrence ? {
     freq: e.recurrence.freq,
     interval: e.recurrence.interval ?? undefined,
@@ -113,6 +115,7 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
   const body = (e: Partial<CalendarEvent>) => JSON.stringify({
     calendarId, title: e.title?.trim(), start: e.start, end: e.end,
     allDay: e.allDay ?? false, description: e.description ?? null,
+    color: e.color ?? null,
     recurrence: e.recurrence ? {
       freq: e.recurrence.freq,
       interval: e.recurrence.interval ?? null,

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 [ApiController]
 [Route("api/calendar")]
@@ -53,7 +54,8 @@ public class CalendarController : ControllerBase
         if (dto.CalendarId == Guid.Empty) return BadRequest(new { error = "calendarId is required" });
         if (Validate(dto.Title, dto.Start, dto.End) is { } error) return BadRequest(new { error });
         if (!await IsMemberAsync(dto.CalendarId, requireEditorOrOwner: true)) return Forbid();
-
+        if (!TryNormalizeColor(dto.Color, out var color))
+            return BadRequest(new { error = "color must look like #2563eb" });
         var ev = new Event
         {
             CalendarId = dto.CalendarId,
@@ -84,6 +86,8 @@ public class CalendarController : ControllerBase
         var ev = await _db.Events.FindAsync(id);
         if (ev == null) return NotFound();
         if (!await IsMemberAsync(ev.CalendarId, requireEditorOrOwner: true)) return Forbid();
+        if (!TryNormalizeColor(dto.Color, out var color))
+            return BadRequest(new { error = "color must look like #2563eb" });
 
         ev.Title = dto.Title.Trim();
         ev.Description = dto.Description;
@@ -191,6 +195,12 @@ public class CalendarController : ControllerBase
         if (string.IsNullOrWhiteSpace(title)) return "title is required";
         if (ToUtc(end) < ToUtc(start)) return "end must be after start";
         return null;
+    }
+
+    private static bool TryNormalizeColor(string? color, out string? normalized)
+    {
+        normalized = string.IsNullOrWhiteSpace(color) ? null : color.Trim().ToLowerInvariant();
+        return normalized == null || Regex.IsMatch(normalized, "^#[0-9a-f]{6}$");
     }
 
     private static DateTime ToUtc(DateTime d) =>

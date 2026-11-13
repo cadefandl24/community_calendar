@@ -11,6 +11,19 @@ type Props = Omit<Parameters<NonNullable<CalendarProps['renderEventForm']>>[0], 
     };
 };
 
+// Colors people can pick for an event. Each is dark enough to read as text
+// on the light tint the calendar draws behind it.
+const EVENT_COLORS = [
+    { name: 'Blue', value: '#2563eb' },
+    { name: 'Teal', value: '#0f766e' },
+    { name: 'Green', value: '#15803d' },
+    { name: 'Orange', value: '#c2410c' },
+    { name: 'Red', value: '#dc2626' },
+    { name: 'Pink', value: '#be185d' },
+    { name: 'Purple', value: '#7c3aed' },
+    { name: 'Gray', value: '#4b5563' },
+];
+
 // datetime-local expects local wall time rather than a UTC ISO string.
 function localDateTime(date: Date) {
     const pad = (value: number) => String(value).padStart(2, '0');
@@ -28,6 +41,7 @@ export default function EventDialog({ event, initialDate, onSave, onDelete, onCl
     const [guests, setGuests] = useState(event?.guests?.join(', ') ?? '');
     const [recurrence, setRecurrence] = useState(event?.recurrence?.freq ?? '');
     const [reminder, setReminder] = useState(event?.reminders?.[0]?.time.toString() ?? '30');
+    const [color, setColor] = useState(event?.color ?? '');
     const [error, setError] = useState('');
     const [attendanceError, setAttendanceError] = useState('');
 
@@ -62,6 +76,7 @@ export default function EventDialog({ event, initialDate, onSave, onDelete, onCl
             description, location,
             guests: guests.split(',').map(guest => guest.trim()).filter(Boolean),
             recurrence: recurrence ? { ...event?.recurrence, freq: recurrence as NonNullable<CalendarEvent['recurrence']>['freq'] } : undefined,
+            color: color || undefined,
             reminders: reminder ? [{ id: event?.reminders?.[0]?.id ?? crypto.randomUUID(), type: 'notification', time: Number(reminder), label: `${reminder} minutes before` }] : [],
         };
         onSave(next);
@@ -93,6 +108,28 @@ export default function EventDialog({ event, initialDate, onSave, onDelete, onCl
                         </div>
                     )}
                     <label className="event-field">Event title <input autoFocus required value={title} onChange={e => setTitle(e.target.value)} placeholder="What’s happening?" /></label>
+                    <fieldset className="event-colors">
+                        <legend>Color</legend>
+                        <div className="event-colors-options">
+                            {[{ name: 'Default', value: '' }, ...EVENT_COLORS].map(option => (
+                                <label key={option.name} className="event-color" title={option.name}>
+                                    <input
+                                        type="radio"
+                                        name={`${headingId}-color`}
+                                        value={option.value}
+                                        checked={color === option.value}
+                                        onChange={() => setColor(option.value)}
+                                    />
+                                    <span
+                                        className={option.value ? 'event-color-swatch' : 'event-color-swatch event-color-default'}
+                                        style={option.value ? { background: option.value } : undefined}
+                                        aria-hidden="true"
+                                    />
+                                    <span className="event-visually-hidden">{option.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
                     <div className="event-time-row">
                         <label className="event-field">Starts <input type="datetime-local" required value={start} onChange={e => setStart(e.target.value)} /></label>
                         <label className="event-field">Ends <input type="datetime-local" required value={end} onChange={e => setEnd(e.target.value)} /></label>

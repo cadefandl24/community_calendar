@@ -124,7 +124,6 @@ namespace calendarapi.Migrations
                 {
                     b.Property<Guid>("EventId")
                         .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
                         .HasColumnType("uuid");
 
                     b.Property<bool>("AllDay")
@@ -132,6 +131,10 @@ namespace calendarapi.Migrations
 
                     b.Property<Guid>("CalendarId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -153,7 +156,8 @@ namespace calendarapi.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("RecurrenceFreq")
-                        .HasColumnType("text");
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
 
                     b.Property<int?>("RecurrenceInterval")
                         .HasColumnType("integer");

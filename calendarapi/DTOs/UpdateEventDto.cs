@@ -6,4 +6,5 @@
     public bool AllDay { get; set; }
     public string? Description { get; set; }
     public RecurrenceDto? Recurrence { get; set; }
+    public string? Color { get; set; }
 }
