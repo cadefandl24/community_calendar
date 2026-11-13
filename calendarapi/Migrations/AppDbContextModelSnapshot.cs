@@ -124,6 +124,7 @@ namespace calendarapi.Migrations
                 {
                     b.Property<Guid>("EventId")
                         .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
                         .HasColumnType("uuid");
 
                     b.Property<bool>("AllDay")
@@ -147,6 +148,18 @@ namespace calendarapi.Migrations
 
                     b.Property<string>("GoogleId")
                         .HasColumnType("text");
+
+                    b.Property<int?>("RecurrenceCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RecurrenceFreq")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("RecurrenceInterval")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("RecurrenceUntil")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("timestamp with time zone");

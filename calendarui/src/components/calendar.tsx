@@ -12,13 +12,28 @@ import { API_URL } from '../lib/api';
 type EventDto = {
   id: string; calendarId: string; title: string; start: string; end: string;
   allDay: boolean; description?: string | null; createdBy: string; attendeeIds: string[];
+  recurrence?: {
+    freq: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+    interval?: number | null; count?: number | null; until?: string | null;
+  } | null;
 };
 
 const fromDto = (e: EventDto): CalendarEvent => ({
   id: e.id, title: e.title, start: new Date(e.start), end: new Date(e.end),
   allDay: e.allDay, description: e.description ?? undefined,
   createdBy: e.createdBy, attendeeIds: e.attendeeIds,
+  recurrence: e.recurrence ? {
+    freq: e.recurrence.freq,
+    interval: e.recurrence.interval ?? undefined,
+    count: e.recurrence.count ?? undefined,
+    until: e.recurrence.until ? new Date(e.recurrence.until) : undefined,
+  } : undefined,
 } as CalendarEvent);
+
+// The calendar draws each repeat of a recurring event as a copy labeled
+// "<event id>-<timestamp>". Event ids are 36 characters long, so the first
+// 36 characters of any id are the id of the event saved in the database.
+const seriesIdOf = (id: string | number | undefined) => String(id ?? '').slice(0, 36);
 
 const localTimeFormat = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
@@ -98,6 +113,12 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
   const body = (e: Partial<CalendarEvent>) => JSON.stringify({
     calendarId, title: e.title?.trim(), start: e.start, end: e.end,
     allDay: e.allDay ?? false, description: e.description ?? null,
+    recurrence: e.recurrence ? {
+      freq: e.recurrence.freq,
+      interval: e.recurrence.interval ?? null,
+      count: e.recurrence.count ?? null,
+      until: e.recurrence.until ?? null,
+    } : null,
   });
 
   async function createEvent(e: Partial<CalendarEvent>) {
@@ -108,17 +129,32 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
     } catch (err) { console.error(err); }
   }
 
-  async function updateEvent(e: CalendarEvent) {
+  async function updateEvent(changed: CalendarEvent) {
+    const id = seriesIdOf(changed.id);
+    let e = changed;
+
+    if (String(changed.id) !== id) {
+      // A repeated copy was edited or moved: apply the same change to the whole series.
+      const series = events.find(x => x.id === id);
+      if (!series) return;
+      const copyStart = Number(String(changed.id).slice(id.length + 1));
+      const shift = new Date(changed.start).getTime() - copyStart;
+      const length = new Date(changed.end).getTime() - new Date(changed.start).getTime();
+      const start = new Date(new Date(series.start).getTime() + shift);
+      e = { ...changed, id, start, end: new Date(start.getTime() + length) };
+    }
+
     upsert(e); // optimistic
     try {
-      const saved: EventDto = await api(`/event/${e.id}`, { method: 'PUT', body: body(e) });
+      const saved: EventDto = await api(`/event/${id}`, { method: 'PUT', body: body(e) });
       upsert(fromDto(saved));
     } catch (err) { console.error(err); }
   }
 
   async function deleteEvent(id: string) {
-    setEvents(prev => prev.filter(x => x.id !== id));
-    await api(`/event/${id}`, { method: 'DELETE' }).catch(console.error);
+    const seriesId = seriesIdOf(id);   // deleting any repeat deletes the whole series
+    setEvents(prev => prev.filter(x => x.id !== seriesId));
+    await api(`/event/${seriesId}`, { method: 'DELETE' }).catch(console.error);
   }
 
   async function changeAttendance(eventId: string, going: boolean) {
@@ -151,7 +187,7 @@ export default function Calendar({ calendarId }: { calendarId: string }) {
           onEventDelete={deleteEvent} onEventDrop={moveEvent} onEventResize={moveEvent}
           renderEventForm={({ isOpen, ...props }) => {
             if (!isOpen) return null;
-            const event = events.find(item => item.id === props.event?.id);
+            const event = events.find(item => item.id === seriesIdOf(props.event?.id));
             const attendeeIds: string[] = event?.attendeeIds ?? [];
             return (
               <EventDialog

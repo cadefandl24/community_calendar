@@ -1,4 +1,3 @@
-using calendarapi.DTOs;
 using CalendarAPI.Hubs;
 using CalendarAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -65,6 +64,7 @@ public class CalendarController : ControllerBase
             EndTime = ToUtc(dto.End),
             AllDay = dto.AllDay
         };
+        if (ApplyRecurrence(ev, dto.Recurrence) is { } recurrenceError) return BadRequest(new { error = recurrenceError });
         _db.Events.Add(ev);
         _db.EventAttendees.Add(new EventAttendee { EventId = ev.EventId, UserId = UserId, Email = UserEmail });
         await _db.SaveChangesAsync();
@@ -197,4 +197,30 @@ public class CalendarController : ControllerBase
         d.Kind == DateTimeKind.Unspecified
             ? DateTime.SpecifyKind(d, DateTimeKind.Utc)
             : d.ToUniversalTime();
+
+    private static readonly string[] Frequencies = { "DAILY", "WEEKLY", "MONTHLY", "YEARLY" };
+
+    // Copies the repeat settings onto the event. Returns an error message, or null if they're fine.
+    private static string? ApplyRecurrence(Event ev, RecurrenceDto? r)
+    {
+        if (r == null || string.IsNullOrWhiteSpace(r.Freq))
+        {
+            ev.RecurrenceFreq = null;
+            ev.RecurrenceInterval = null;
+            ev.RecurrenceCount = null;
+            ev.RecurrenceUntil = null;
+            return null;
+        }
+
+        var freq = r.Freq.Trim().ToUpperInvariant();
+        if (!Frequencies.Contains(freq)) return "recurrence.freq must be DAILY, WEEKLY, MONTHLY or YEARLY";
+        if (r.Interval is < 1) return "recurrence.interval must be at least 1";
+        if (r.Count is < 1) return "recurrence.count must be at least 1";
+
+        ev.RecurrenceFreq = freq;
+        ev.RecurrenceInterval = r.Interval;
+        ev.RecurrenceCount = r.Count;
+        ev.RecurrenceUntil = r.Until is { } until ? ToUtc(until) : null;
+        return null;
+    }
 }
