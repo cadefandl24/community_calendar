@@ -64,7 +64,8 @@ public class CalendarController : ControllerBase
             Description = dto.Description,
             StartTime = ToUtc(dto.Start),
             EndTime = ToUtc(dto.End),
-            AllDay = dto.AllDay
+            AllDay = dto.AllDay,
+            Color = color
         };
         if (ApplyRecurrence(ev, dto.Recurrence) is { } recurrenceError) return BadRequest(new { error = recurrenceError });
         _db.Events.Add(ev);
@@ -94,6 +95,8 @@ public class CalendarController : ControllerBase
         ev.StartTime = ToUtc(dto.Start);
         ev.EndTime = ToUtc(dto.End);
         ev.AllDay = dto.AllDay;
+        ev.Color = color;
+        if (ApplyRecurrence(ev, dto.Recurrence) is { } recurrenceError) return BadRequest(new { error = recurrenceError });
         ev.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
