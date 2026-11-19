@@ -1,7 +1,7 @@
 ﻿public class Calendar
 {
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public Guid CalendarId { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
-    public string OwnerUserId { get; set; } = "";
+    public string OwnerUserId { get; set; } = ""; //Auth0 user id
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

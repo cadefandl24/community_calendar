@@ -1,0 +1,155 @@
+.logout-button,
+.create-calendar-button {
+    display: inline-block;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 10px;
+    background: #203e32;
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+    margin: 16px 8px 0;
+    cursor: pointer;
+}
+
+.logout-button {
+    margin: 0;
+    padding: 10px 18px;
+}
+
+    .logout-button:hover,
+    .create-calendar-button:hover {
+        background: #315c49;
+    }
+
+    .logout-button:focus-visible,
+    .create-calendar-button:focus-visible {
+        outline: 3px solid #c56b36;
+        outline-offset: 5px;
+    }
+
+/* Hide CalendarKit's default calendar list and timezone picker. */
+.community-scheduler .rounded-2xl:has(> .space-y-1 input[data-cal-id]),
+.community-scheduler .mt-auto > .rounded-2xl:has(> .relative > button[class~="bg-blue-200/40"]) {
+    display: none;
+}
+
+.community-scheduler .community-scheduler-time {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px 12px;
+    padding: 8px 20px;
+    color: #203e32;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.community-scheduler-time span:first-child {
+    font-weight: 600;
+}
+
+.community-up-next {
+    --up-next-line: #d8ded2;
+    --up-next-muted: #50665b;
+    border-top: 1px solid var(--up-next-line);
+    padding-top: 12px;
+    color: #203e32;
+    font-size: 0.875rem;
+}
+
+    .community-up-next h2 {
+        color: inherit;
+        font-size: 1rem;
+        font-weight: 650;
+        margin: 0 0 6px;
+    }
+
+    .community-up-next details + details {
+        border-top: 1px solid var(--up-next-line);
+    }
+
+    .community-up-next summary {
+        display: grid;
+        grid-template-columns: 6px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 5px 4px;
+        border-radius: 6px;
+        list-style: none;
+        cursor: pointer;
+    }
+
+        .community-up-next summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .community-up-next summary:hover {
+            background: #e7eee4;
+        }
+
+    .community-up-next time,
+    .community-up-next strong {
+        display: block;
+        overflow-wrap: anywhere;
+    }
+
+    .community-up-next time,
+    .community-up-next p {
+        color: var(--up-next-muted);
+        font-size: 0.8rem;
+    }
+
+    .community-up-next details p {
+        margin: 0 4px 8px 18px;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+    }
+
+.community-up-next-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--up-next-muted);
+}
+
+.community-up-next details[open] .community-up-next-arrow {
+    transform: rotate(90deg);
+}
+
+/* "You were removed from that calendar." */
+.removed-notice {
+    margin: 0 clamp(12px, 3vw, 24px) 12px;
+    color: #8a5a00;
+    font-weight: 600;
+}
+
+    .removed-notice:empty {
+        display: none;
+    }
+
+/* Logo + "Community Calendar" at the top; clicking it goes back to the landing page */
+.calendar-page-title a {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: inherit;
+    text-decoration: none;
+}
+
+    .calendar-page-title a:hover span {
+        text-decoration: underline;
+        text-underline-offset: 6px;
+    }
+
+    .calendar-page-title a:focus-visible {
+        outline: 3px solid #c56b36;
+        outline-offset: 5px;
+    }
+
+.calendar-page-logo {
+    height: 1.1em;
+    width: auto;
+    flex-shrink: 0;
+}

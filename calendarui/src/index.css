@@ -1,3 +1,5 @@
+@import "tailwindcss";
+@source "../node_modules/calendarkit-pro";
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -17,7 +19,7 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -30,6 +32,7 @@
   }
 }
 
+/* Automatic dark mode disabled; kept for future use.
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;
@@ -49,6 +52,7 @@
     filter: invert(1) brightness(2);
   }
 }
+*/
 
 #root {
   width: 1126px;

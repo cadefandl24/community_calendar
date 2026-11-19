@@ -1,0 +1,351 @@
+.calendar-picker {
+    --picker-ink: #203e32;
+    --picker-line: #aab7aa;
+    --picker-field: #fffdf8;
+    --picker-danger: #9c3025;
+    margin: 0 clamp(12px, 3vw, 24px) 16px;
+    padding: clamp(12px, 3vw, 20px);
+    border: 1px solid var(--picker-line);
+    border-radius: 12px;
+    background: #f8f6ee;
+    color: var(--picker-ink);
+    text-align: left;
+    font-size: 1rem;
+}
+
+.calendar-picker-toolbar,
+.calendar-picker-selection,
+.calendar-picker-actions,
+.calendar-picker-panel-heading,
+.calendar-picker-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.calendar-picker-toolbar {
+    justify-content: space-between;
+    align-items: end;
+    gap: 12px;
+}
+
+.calendar-picker-current {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.calendar-picker label {
+    display: block;
+    margin-bottom: 4px;
+    color: #4c6054;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.calendar-picker button,
+.calendar-picker input,
+.calendar-picker select,
+.calendar-picker summary {
+    min-height: 44px;
+    max-width: 100%;
+    border: 1px solid var(--picker-line);
+    border-radius: 8px;
+    background: var(--picker-field);
+    color: inherit;
+    padding: 8px 12px;
+}
+
+.calendar-picker select {
+    appearance: auto;
+    min-width: 0;
+}
+
+.calendar-picker-selection {
+    flex-wrap: nowrap;
+}
+
+.calendar-picker button {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+    .calendar-picker button:hover,
+    .calendar-picker button[aria-expanded="true"] {
+        background: #e8ede4;
+    }
+
+.calendar-picker .calendar-picker-primary {
+    border-color: var(--picker-ink);
+    background: var(--picker-ink);
+    color: white;
+}
+
+    .calendar-picker .calendar-picker-primary:hover,
+    .calendar-picker .calendar-picker-primary[aria-expanded="true"] {
+        background: #315c49;
+    }
+
+.calendar-picker button:disabled,
+.calendar-picker [aria-disabled="true"] {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.calendar-picker button:focus-visible,
+.calendar-picker input:focus-visible,
+.calendar-picker select:focus-visible,
+.calendar-picker summary:focus-visible {
+    outline: 2px solid var(--picker-ink);
+    outline-offset: 2px;
+}
+
+.calendar-picker-role {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #e6ece1;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.calendar-picker-panel {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--picker-line);
+}
+
+.calendar-picker-panel-heading {
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    margin-bottom: 8px;
+}
+
+    .calendar-picker-panel-heading h2 {
+        margin: 0;
+        color: inherit;
+        font-size: 1.1rem;
+        font-weight: 650;
+        overflow-wrap: anywhere;
+    }
+
+.calendar-picker .calendar-picker-close {
+    flex: 0 0 44px;
+    border-color: transparent;
+    background: transparent;
+    font-size: 1.4rem;
+}
+
+.calendar-picker-fields input {
+    flex: 1 1 200px;
+    min-width: 0;
+}
+
+.calendar-picker-error,
+.calendar-picker-code {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+}
+
+.calendar-picker-error {
+    color: var(--picker-danger);
+}
+
+.calendar-picker-manage {
+    position: relative;
+    flex-shrink: 0;
+}
+
+    .calendar-picker-manage summary {
+        display: grid;
+        min-width: 44px;
+        place-items: center;
+        list-style: none;
+        cursor: pointer;
+        font-size: 1.2rem;
+    }
+
+        .calendar-picker-manage summary::-webkit-details-marker {
+            display: none;
+        }
+
+.calendar-picker-menu {
+    position: absolute;
+    z-index: 10;
+    inset-inline-end: 0;
+    top: calc(100% + 6px);
+    display: grid;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid var(--picker-line);
+    border-radius: 8px;
+    background: var(--picker-field);
+    box-shadow: 0 4px 12px #203e3224;
+    white-space: nowrap;
+}
+
+.calendar-picker .calendar-picker-menu button {
+    border: 0;
+    text-align: start;
+}
+
+.calendar-picker .calendar-picker-menu-delete {
+    color: var(--picker-danger);
+}
+
+.calendar-picker-confirm {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid var(--picker-line);
+    border-radius: 10px;
+    background: var(--picker-field);
+}
+
+    .calendar-picker-confirm h2 {
+        margin: 0 0 6px;
+        color: inherit;
+        font-size: 1.1rem;
+        font-weight: 650;
+        overflow-wrap: anywhere;
+    }
+
+.calendar-picker-confirm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.calendar-picker .calendar-picker-danger {
+    border-color: var(--picker-danger);
+    background: var(--picker-danger);
+    color: white;
+}
+
+    .calendar-picker .calendar-picker-danger:hover:not(:disabled) {
+        background: #7c241d;
+    }
+
+.calendar-picker-notice:not(:empty) {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+}
+
+.calendar-picker-members {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+    .calendar-picker-members li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        overflow-wrap: anywhere;
+    }
+
+        .calendar-picker-members li + li {
+            border-top: 1px solid var(--picker-line);
+        }
+/* "Invite as" role choice */
+.calendar-picker-roles {
+    min-width: 0;
+    margin: 12px 0 0;
+    padding: 0;
+    border: 0;
+}
+
+    .calendar-picker-roles legend {
+        margin-bottom: 4px;
+        padding: 0;
+        color: #4c6054;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+.calendar-picker-role-options {
+    display: grid;
+    gap: 8px;
+}
+
+@media (min-width: 560px) {
+    .calendar-picker-role-options {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.calendar-picker .calendar-picker-role-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--picker-line);
+    border-radius: 8px;
+    background: var(--picker-field);
+    color: var(--picker-ink);
+    font-size: 0.95rem;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.calendar-picker-role-option:has(input:checked) {
+    border-color: var(--picker-ink);
+    box-shadow: inset 0 0 0 1px var(--picker-ink);
+    background: #eef2ea;
+}
+
+.calendar-picker .calendar-picker-role-option input {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    margin: 2px 0 0;
+    padding: 0;
+    accent-color: var(--picker-ink);
+}
+
+.calendar-picker-role-option > span {
+    display: grid;
+    gap: 2px;
+}
+
+.calendar-picker-role-description {
+    color: #4c6054;
+    font-size: 0.85rem;
+}
+
+.calendar-picker-code p {
+    margin: 0 0 4px;
+}
+
+.calendar-picker-warning {
+    color: #8a5a00;
+}
+
+/* Owner's role dropdown in the members list */
+.calendar-picker-members .calendar-picker-member-role {
+    flex-shrink: 0;
+    width: auto;
+}
+/* Owner's controls for each member: role dropdown, Remove, and the confirm step */
+.calendar-picker-member-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* Let the controls wrap under the name on narrow screens instead of squeezing it */
+.calendar-picker-members li {
+    flex-wrap: wrap;
+}
+
+    .calendar-picker-members li > span:first-child {
+        flex: 1 1 8rem;
+        min-width: 0;
+    }

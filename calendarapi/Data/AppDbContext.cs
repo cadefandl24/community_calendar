@@ -4,17 +4,48 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    public DbSet<Event> Events { get; set; }
     public DbSet<Calendar> Calendars { get; set; }
     public DbSet<CalendarMember> CalendarMembers { get; set; }
     public DbSet<CalendarInvite> CalendarInvites { get; set; }
+    public DbSet<Event> Events { get; set; }
+    public DbSet<EventAttendee> EventAttendees { get; set; }
+    public DbSet<UserProfile> UserProfiles { get; set; }
+    public DbSet<EventMessage> EventMessages { get; set; }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder b)
     {
-        modelBuilder.Entity<CalendarMember>()
-            .HasIndex(m => new { m.CalendarId, m.UserId }).IsUnique();
+        b.HasDefaultSchema("app");
 
-        modelBuilder.Entity<CalendarInvite>()
-            .HasIndex(i => i.Code).IsUnique();
+        b.Entity<EventAttendee>().HasKey(a => new { a.EventId, a.UserId });
+
+        b.Entity<CalendarMember>().HasOne<Calendar>().WithMany()
+            .HasForeignKey(m => m.CalendarId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<CalendarInvite>().HasOne<Calendar>().WithMany()
+            .HasForeignKey(i => i.CalendarId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<Event>().HasOne<Calendar>().WithMany()
+            .HasForeignKey(e => e.CalendarId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<EventAttendee>().HasOne<Event>().WithMany()
+            .HasForeignKey(a => a.EventId).OnDelete(DeleteBehavior.Cascade);
+
+        b.Entity<CalendarMember>().HasIndex(m => new { m.CalendarId, m.UserId }).IsUnique();
+        b.Entity<CalendarMember>().HasIndex(m => m.UserId);
+        b.Entity<CalendarInvite>().HasIndex(i => i.Code).IsUnique();
+        b.Entity<Event>().HasIndex(e => new { e.CalendarId, e.StartTime });
+        b.Entity<Event>().HasIndex(e => new { e.CalendarId, e.GoogleId }).IsUnique();
+        b.Entity<EventAttendee>().HasIndex(a => a.UserId);
+
+        b.Entity<CalendarMember>().Property(m => m.Role).HasConversion<string>();
+        b.Entity<CalendarInvite>().Property(i => i.Role).HasConversion<string>();
+
+        b.Entity<UserProfile>().HasKey(p => p.UserId);
+        // Usernames: up to 30 characters, and no two people can have the same one
+        b.Entity<UserProfile>().Property(p => p.Username).HasMaxLength(30);
+        b.Entity<UserProfile>().HasIndex(p => p.Username).IsUnique();
+
+        // Event chat: deleting an event deletes its messages; messages load newest-first per event
+        b.Entity<EventMessage>().HasOne<Event>().WithMany()
+            .HasForeignKey(m => m.EventId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<EventMessage>().HasIndex(m => new { m.EventId, m.CreatedAt });
+        b.Entity<EventMessage>().HasIndex(m => m.UserId);
     }
 }

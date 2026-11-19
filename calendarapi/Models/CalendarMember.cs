@@ -2,10 +2,11 @@
 
 public class CalendarMember
 {
-    public string Id { get; set; } = Guid.NewGuid().ToString();
-    public string CalendarId { get; set; } = "";
+    public Guid CalendarMemberId { get; set; } = Guid.NewGuid();
+    public Guid CalendarId { get; set; }
     public string UserId { get; set; } = "";
     public string? Email { get; set; }
-    public CalendarRole Role { get; set; } = CalendarRole.Editor;
+    public CalendarRole Role { get; set; } = CalendarRole.Viewer;
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastOpenedAt { get; set; }
 }

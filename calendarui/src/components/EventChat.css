@@ -1,0 +1,131 @@
+/* Event chat, shown inside the event dialog */
+.event-chat {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid #dce1d6;
+    border-radius: 12px;
+    background: #f7f8f1;
+}
+
+.event-dialog .event-chat h3 {
+    margin: 0;
+    color: #203e32;
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.event-chat-status,
+.event-chat-hint {
+    margin: 0;
+    color: #758071;
+    font-size: 12px;
+}
+
+.event-chat-list {
+    display: grid;
+    gap: 8px;
+    max-height: 260px;
+    margin: 0;
+    padding: 2px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    list-style: none;
+}
+
+.event-chat-message {
+    justify-self: start;
+    max-width: 85%;
+    padding: 8px 11px;
+    border: 1px solid #dce1d6;
+    border-radius: 12px 12px 12px 4px;
+    background: #fff;
+}
+
+.event-chat-mine {
+    justify-self: end;
+    border-color: #c9d6c3;
+    border-radius: 12px 12px 4px 12px;
+    background: #e8efe2;
+}
+
+.event-chat-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    font-size: 11px;
+    color: #758071;
+}
+
+.event-chat-author {
+    color: #203e32;
+    font-weight: 650;
+}
+
+.event-chat-body {
+    margin: 3px 0 0;
+    color: #203e32;
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.event-dialog .event-chat-delete,
+.event-dialog .event-chat-confirm button {
+    margin-top: 4px;
+    padding: 2px 0;
+    border: 0;
+    background: none;
+    color: #52624f;
+    font-size: 12px;
+    text-decoration: underline;
+}
+
+.event-chat-confirm {
+    display: flex;
+    gap: 12px;
+}
+
+.event-dialog .event-chat-confirm .event-chat-danger {
+    color: #b42318;
+    font-weight: 650;
+}
+
+.event-dialog .event-chat-older {
+    justify-self: center;
+    padding: 4px 10px;
+    border: 1px solid #dce1d6;
+    border-radius: 999px;
+    background: #fff;
+    color: #52624f;
+    font-size: 12px;
+}
+
+.event-chat-compose {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.event-dialog .event-chat-compose textarea {
+    flex: 1;
+    min-height: 44px;
+    resize: vertical;
+}
+
+.event-dialog .event-chat-send {
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 0;
+    border-radius: 9px;
+    background: #203e32;
+    color: #fffdf8;
+    font-weight: 600;
+}
+
+    .event-dialog .event-chat-send:disabled {
+        cursor: default;
+        opacity: .5;
+    }

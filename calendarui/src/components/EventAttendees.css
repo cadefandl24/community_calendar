@@ -1,0 +1,88 @@
+/* "Who's going" list, shown in the event dialog's Chat tab */
+.event-attendees {
+    display: grid;
+    gap: 8px;
+    padding: 14px;
+    border: 1px solid #dce1d6;
+    border-radius: 12px;
+    background: #fffdf8;
+}
+
+.event-dialog .event-attendees h3 {
+    margin: 0;
+    color: #203e32;
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.event-attendees-status {
+    margin: 0;
+    color: #758071;
+    font-size: 12px;
+}
+
+    .event-attendees-status:empty {
+        display: none;
+    }
+
+.event-attendees-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+    .event-attendees-list li {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px 12px;
+        min-height: 44px;
+        padding: 4px 0;
+    }
+
+        .event-attendees-list li + li {
+            border-top: 1px solid #ecefe6;
+        }
+
+.event-attendees-name {
+    color: #203e32;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.event-attendees-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.event-dialog .event-attendees-list button {
+    min-height: 36px;
+    padding: 6px 12px;
+    border: 1px solid #c9d1c4;
+    border-radius: 8px;
+    background: #fffdf8;
+    color: #52624f;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+    .event-dialog .event-attendees-list button:hover:not(:disabled) {
+        background: #eef2ea;
+    }
+
+.event-dialog .event-attendees-list .event-attendees-danger {
+    border-color: #b42318;
+    background: #b42318;
+    color: #fff;
+}
+
+    .event-dialog .event-attendees-list .event-attendees-danger:hover:not(:disabled) {
+        background: #8f1c13;
+    }
+
+.event-dialog .event-attendees-list button:disabled {
+    cursor: default;
+    opacity: .6;
+}

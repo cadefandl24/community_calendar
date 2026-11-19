@@ -1,9 +1,10 @@
+using CalendarAPI.Hubs;
+using CalendarAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using CalendarAPI.Hubs;
-using CalendarAPI.Services;
+using System.Text.RegularExpressions;
 
 [ApiController]
 [Route("api/calendar")]
@@ -14,6 +15,7 @@ public class CalendarController : ControllerBase
     private readonly IClaimsService _claimsService;
     private readonly IHubContext<CalendarHub> _hub;
     private string UserId => _claimsService.GetUserId() ?? throw new UnauthorizedAccessException();
+    private string? UserEmail => _claimsService.GetUserEmail();
 
     public CalendarController(AppDbContext db, IClaimsService claimsService, IHubContext<CalendarHub> hub)
     {
@@ -22,7 +24,201 @@ public class CalendarController : ControllerBase
         _hub = hub;
     }
 
-    private async Task<bool> IsMemberAsync(string calendarId, bool requireEditorOrOwner = false)
+    // GET /api/calendar/events?calendarId=...
+    [HttpGet("events")]
+    public async Task<IActionResult> GetEvents([FromQuery] Guid calendarId)
+    {
+        if (calendarId == Guid.Empty) return BadRequest(new { error = "calendarId is required" });
+        if (!await IsMemberAsync(calendarId)) return Forbid();
+
+        var rows = await _db.Events
+            .Where(e => e.CalendarId == calendarId)
+            .OrderBy(e => e.StartTime)
+            .Select(e => new
+            {
+                Event = e,
+                AttendeeIds = _db.EventAttendees
+                    .Where(a => a.EventId == e.EventId)
+                    .Select(a => a.UserId)
+                    .ToList()
+            })
+            .ToListAsync();
+
+        return Ok(rows.Select(r => EventResponseDto.From(r.Event, r.AttendeeIds)));
+    }
+
+    // GET /api/calendar/event/{id}/attendees   
+    [HttpGet("event/{id:guid}/attendees")]
+    public async Task<IActionResult> GetAttendees(Guid id)
+    {
+        var ev = await _db.Events.FindAsync(id);
+        if (ev == null) return NotFound();
+        if (!await IsMemberAsync(ev.CalendarId)) return Forbid();
+
+        var attendees = await (
+                from a in _db.EventAttendees
+                where a.EventId == id
+                join p in _db.UserProfiles on a.UserId equals p.UserId into profiles
+                from p in profiles.DefaultIfEmpty()
+                orderby a.JoinedAt
+                select new { a.UserId, a.JoinedAt, Username = p != null ? p.Username : null })
+            .ToListAsync();
+        return Ok(attendees);
+    }
+
+    // POST /api/calendar/event   (Owners and Editors only)
+    [HttpPost("event")]
+    public async Task<IActionResult> CreateEvent([FromBody] CreateEventDto dto)
+    {
+        if (dto.CalendarId == Guid.Empty) return BadRequest(new { error = "calendarId is required" });
+        if (Validate(dto.Title, dto.Start, dto.End) is { } error) return BadRequest(new { error });
+        if (!await IsMemberAsync(dto.CalendarId, requireEditorOrOwner: true)) return Forbid();
+        if (!TryNormalizeColor(dto.Color, out var color))
+            return BadRequest(new { error = "color must look like #2563eb" });
+        var ev = new Event
+        {
+            CalendarId = dto.CalendarId,
+            CreatedByUserId = UserId,
+            Title = dto.Title.Trim(),
+            Description = dto.Description,
+            StartTime = ToUtc(dto.Start),
+            EndTime = ToUtc(dto.End),
+            AllDay = dto.AllDay,
+            Color = color
+        };
+        if (ApplyRecurrence(ev, dto.Recurrence) is { } recurrenceError) return BadRequest(new { error = recurrenceError });
+        _db.Events.Add(ev);
+        _db.EventAttendees.Add(new EventAttendee { EventId = ev.EventId, UserId = UserId, Email = UserEmail });
+        await _db.SaveChangesAsync();
+
+        var result = await ToDto(ev);
+        await _hub.Clients.Group(CalendarHub.GroupName(ev.CalendarId)).SendAsync("eventCreated", result);
+        return Ok(result);
+    }
+
+    // PUT or PATCH /api/calendar/event/{id}   (Owners and Editors only)
+    [HttpPut("event/{id:guid}")]
+    [HttpPatch("event/{id:guid}")]
+    public async Task<IActionResult> UpdateEvent(Guid id, [FromBody] UpdateEventDto dto)
+    {
+        if (Validate(dto.Title, dto.Start, dto.End) is { } error) return BadRequest(new { error });
+
+        var ev = await _db.Events.FindAsync(id);
+        if (ev == null) return NotFound();
+        if (!await CanChangeEventAsync(ev)) return Forbid();
+        if (!TryNormalizeColor(dto.Color, out var color))
+            return BadRequest(new { error = "color must look like #2563eb" });
+
+        ev.Title = dto.Title.Trim();
+        ev.Description = dto.Description;
+        ev.StartTime = ToUtc(dto.Start);
+        ev.EndTime = ToUtc(dto.End);
+        ev.AllDay = dto.AllDay;
+        ev.Color = color;
+        if (ApplyRecurrence(ev, dto.Recurrence) is { } recurrenceError) return BadRequest(new { error = recurrenceError });
+        ev.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        var result = await ToDto(ev);
+        await _hub.Clients.Group(CalendarHub.GroupName(ev.CalendarId)).SendAsync("eventUpdated", result);
+        return Ok(result);
+    }
+
+    // DELETE /api/calendar/event/{id}   (Owners and Editors only)
+    [HttpDelete("event/{id:guid}")]
+    public async Task<IActionResult> DeleteEvent(Guid id)
+    {
+        var ev = await _db.Events.FindAsync(id);
+        if (ev == null) return NotFound();
+        if (!await CanChangeEventAsync(ev)) return Forbid();
+
+        _db.Events.Remove(ev);
+        await _db.SaveChangesAsync();
+
+        await _hub.Clients.Group(CalendarHub.GroupName(ev.CalendarId)).SendAsync("eventDeleted", ev.EventId);
+        return Ok(new { success = true });
+    }
+
+    // POST /api/calendar/event/{id}/attend   
+    [HttpPost("event/{id:guid}/attend")]
+    public async Task<IActionResult> Attend(Guid id)
+    {
+        var ev = await _db.Events.FindAsync(id);
+        if (ev == null) return NotFound();
+        if (!await IsMemberAsync(ev.CalendarId)) return Forbid();
+
+        if (!await _db.EventAttendees.AnyAsync(a => a.EventId == id && a.UserId == UserId))
+        {
+            _db.EventAttendees.Add(new EventAttendee { EventId = id, UserId = UserId, Email = UserEmail });
+            await _db.SaveChangesAsync();
+        }
+
+        var result = await ToDto(ev);
+        await _hub.Clients.Group(CalendarHub.GroupName(ev.CalendarId)).SendAsync("eventUpdated", result);
+        return Ok(result);
+    }
+
+    // DELETE /api/calendar/event/{id}/attend   
+    [HttpDelete("event/{id:guid}/attend")]
+    public async Task<IActionResult> Leave(Guid id)
+    {
+        var ev = await _db.Events.FindAsync(id);
+        if (ev == null) return NotFound();
+        if (!await IsMemberAsync(ev.CalendarId)) return Forbid();
+
+        var row = await _db.EventAttendees.FindAsync(id, UserId);
+        if (row != null)
+        {
+            _db.EventAttendees.Remove(row);
+            await _db.SaveChangesAsync();
+        }
+
+        var result = await ToDto(ev);
+        await _hub.Clients.Group(CalendarHub.GroupName(ev.CalendarId)).SendAsync("eventUpdated", result);
+        return Ok(result);
+    }
+
+    // DELETE /api/calendar/event/{id}/attendees/{userId}   
+    // (the Owner, or the Editor who created the event)
+    [HttpDelete("event/{id:guid}/attendees/{userId}")]
+    public async Task<IActionResult> RemoveAttendee(Guid id, string userId)
+    {
+        var ev = await _db.Events.FindAsync(id);
+        if (ev == null) return NotFound();
+        if (!await CanChangeEventAsync(ev)) return Forbid();
+
+        var row = await _db.EventAttendees.FindAsync(id, userId);
+        if (row == null) return NotFound();
+
+        _db.EventAttendees.Remove(row);
+        await _db.SaveChangesAsync();
+
+        var result = await ToDto(ev);
+        await _hub.Clients.Group(CalendarHub.GroupName(ev.CalendarId)).SendAsync("eventUpdated", result);
+        return Ok(result);
+    }
+
+    private async Task<EventResponseDto> ToDto(Event ev)
+    {
+        var attendeeIds = await _db.EventAttendees
+            .Where(a => a.EventId == ev.EventId)
+            .Select(a => a.UserId)
+            .ToListAsync();
+        return EventResponseDto.From(ev, attendeeIds);
+    }
+
+    private async Task<bool> CanChangeEventAsync(Event ev)
+    {
+        var role = await _db.CalendarMembers
+            .Where(m => m.CalendarId == ev.CalendarId && m.UserId == UserId)
+            .Select(m => (CalendarRole?)m.Role)
+            .FirstOrDefaultAsync();
+
+        return role == CalendarRole.Owner
+            || (role == CalendarRole.Editor && ev.CreatedByUserId == UserId);
+    }
+
+    private async Task<bool> IsMemberAsync(Guid calendarId, bool requireEditorOrOwner = false)
     {
         var m = await _db.CalendarMembers
             .FirstOrDefaultAsync(x => x.CalendarId == calendarId && x.UserId == UserId);
@@ -31,95 +227,47 @@ public class CalendarController : ControllerBase
         return true;
     }
 
-    [HttpGet("events")]
-    public async Task<IActionResult> GetEvents([FromQuery] string calendarId)
+    private static string? Validate(string title, DateTime start, DateTime end)
     {
-        if (string.IsNullOrEmpty(calendarId)) return BadRequest(new { error = "calendarId is required" });
-        if (!await IsMemberAsync(calendarId)) return Forbid();
-
-        var events = await _db.Events
-            .Where(e => e.CalendarId == calendarId)
-            .OrderBy(e => e.StartTime)
-            .ToListAsync();
-        return Ok(events);
+        if (string.IsNullOrWhiteSpace(title)) return "title is required";
+        if (ToUtc(end) < ToUtc(start)) return "end must be after start";
+        return null;
     }
 
-    [HttpPost("event")]
-    public async Task<IActionResult> CreateEvent([FromBody] CreateEventDto dto)
+    private static bool TryNormalizeColor(string? color, out string? normalized)
     {
-        if (string.IsNullOrEmpty(dto.CalendarId)) return BadRequest(new { error = "calendarId is required" });
-        if (!await IsMemberAsync(dto.CalendarId, requireEditorOrOwner: true)) return Forbid();
+        normalized = string.IsNullOrWhiteSpace(color) ? null : color.Trim().ToLowerInvariant();
+        return normalized == null || Regex.IsMatch(normalized, "^#[0-9a-f]{6}$");
+    }
 
-        var ev = new Event
+    private static DateTime ToUtc(DateTime d) =>
+        d.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(d, DateTimeKind.Utc)
+            : d.ToUniversalTime();
+
+    private static readonly string[] Frequencies = { "DAILY", "WEEKLY", "MONTHLY", "YEARLY" };
+
+    // Copies the repeat settings onto the event. Returns an error message, or null if they're fine.
+    private static string? ApplyRecurrence(Event ev, RecurrenceDto? r)
+    {
+        if (r == null || string.IsNullOrWhiteSpace(r.Freq))
         {
-            CalendarId = dto.CalendarId,
-            UserId = UserId,
-            Title = dto.Title,
-            StartTime = dto.Start,
-            EndTime = dto.End,
-            Description = dto.Description
-        };
-        _db.Events.Add(ev);
-        await _db.SaveChangesAsync();
+            ev.RecurrenceFreq = null;
+            ev.RecurrenceInterval = null;
+            ev.RecurrenceCount = null;
+            ev.RecurrenceUntil = null;
+            return null;
+        }
 
-        await _hub.Clients.Group(CalendarHub.GroupName(ev.CalendarId)).SendAsync("eventCreated", ev);
-        return Ok(ev);
-    }
+        var freq = r.Freq.Trim().ToUpperInvariant();
+        if (!Frequencies.Contains(freq)) return "recurrence.freq must be DAILY, WEEKLY, MONTHLY or YEARLY";
+        if (r.Interval is < 1) return "recurrence.interval must be at least 1";
+        if (r.Count is < 1) return "recurrence.count must be at least 1";
 
-    [HttpDelete("event/{id}")]
-    public async Task<IActionResult> DeleteEvent(string id)
-    {
-        var ev = await _db.Events.FirstOrDefaultAsync(e => e.Id == id);
-        if (ev == null) return NotFound();
-        if (!await IsMemberAsync(ev.CalendarId, requireEditorOrOwner: true)) return Forbid();
-
-        _db.Events.Remove(ev);
-        await _db.SaveChangesAsync();
-
-        await _hub.Clients.Group(CalendarHub.GroupName(ev.CalendarId)).SendAsync("eventDeleted", ev.Id);
-        return Ok(new { success = true });
-    }
-
-    [HttpPatch("event/{id}")]
-    public async Task<IActionResult> UpdateEvent(string id, [FromBody] UpdateEventDto dto)
-    {
-        var ev = await _db.Events.FirstOrDefaultAsync(e => e.Id == id);
-        if (ev == null) return NotFound();
-        if (!await IsMemberAsync(ev.CalendarId, requireEditorOrOwner: true)) return Forbid();
-
-        ev.Title = dto.Title;
-        ev.StartTime = dto.Start;
-        ev.EndTime = dto.End;
-        ev.Description = dto.Description;
-        await _db.SaveChangesAsync();
-
-        await _hub.Clients.Group(CalendarHub.GroupName(ev.CalendarId)).SendAsync("eventUpdated", ev);
-        return Ok(ev);
-    }
-
-    // keep your existing GET("debug/auth") action here unchanged
-
-
-// DEBUG: Check auth status and all claims
-[HttpGet("debug/auth")]
-    [Authorize]
-    public IActionResult DebugAuth()
-    {
-        var allClaims = _claimsService.GetAllClaims();
-        var userId = _claimsService.GetUserId();
-        var userEmail = _claimsService.GetUserEmail();
-        var userName = _claimsService.GetUserName();
-
-        return Ok(new
-        {
-            isAuthenticated = User.Identity?.IsAuthenticated,
-            identityName = User.Identity?.Name,
-            authType = User.Identity?.AuthenticationType,
-            userId = userId,
-            userEmail = userEmail,
-            userName = userName,
-            totalClaims = allClaims.Count,
-            claims = allClaims.Select(c => new { type = c.Type, value = c.Value, valueType = c.ValueType }).ToList()
-        });
+        ev.RecurrenceFreq = freq;
+        ev.RecurrenceInterval = r.Interval;
+        ev.RecurrenceCount = r.Count;
+        ev.RecurrenceUntil = r.Until is { } until ? ToUtc(until) : null;
+        return null;
     }
 }

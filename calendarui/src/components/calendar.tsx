@@ -1,225 +1,250 @@
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid'
-import interactionPlugin from '@fullcalendar/interaction';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import Sidebar from './sidebar';
+import { Scheduler } from 'calendarkit-pro';
+import type { CalendarEvent, ViewType } from 'calendarkit-pro';
+import EventDialog from './EventDialog';
+import EventChat from './EventChat';
+import EventAttendees from './EventAttendees';
+import UpcomingEvents from './UpcomingEvents';
 import { useCalendarHub } from '../hooks/useCalendarHub';
+import { API_URL } from '../lib/api';
 
-type EventForm = {
-    title: string;
-    date: string;
-    start: string;
-    end: string;
-    description: string;
-};
-type Props = {
-    calendarId: string
+// Shape of an event as the C# API sends it (see EventResponseDto.cs)
+type EventDto = {
+  id: string; calendarId: string; title: string; start: string; end: string;
+  allDay: boolean; description?: string | null; createdBy: string; attendeeIds: string[];
+  color?: string | null;
+  recurrence?: {
+    freq: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+    interval?: number | null; count?: number | null; until?: string | null;
+  } | null;
 };
 
-function toFcEvent(e: any) {
-    return {
-        id: e.id,
-        title: e.title,
-        start: e.startTime,
-        end: e.endTime,
-        extendedProps: { description: e.description }
-    };
+const fromDto = (e: EventDto): CalendarEvent => ({
+  id: e.id, title: e.title, start: new Date(e.start), end: new Date(e.end),
+  allDay: e.allDay, description: e.description ?? undefined,
+  createdBy: e.createdBy, attendeeIds: e.attendeeIds,
+  color: e.color ?? undefined,
+  recurrence: e.recurrence ? {
+    freq: e.recurrence.freq,
+    interval: e.recurrence.interval ?? undefined,
+    count: e.recurrence.count ?? undefined,
+    until: e.recurrence.until ? new Date(e.recurrence.until) : undefined,
+  } : undefined,
+} as CalendarEvent);
+
+// The calendar draws each repeat of a recurring event as a copy labeled
+// "<event id>-<timestamp>". Event ids are 36 characters long, so the first
+// 36 characters of any id are the id of the event saved in the database.
+const seriesIdOf = (id: string | number | undefined) => String(id ?? '').slice(0, 36);
+
+const localTimeFormat = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZoneName: 'short',
+});
+
+function LocalTime() {
+  const [time, setTime] = useState(() => localTimeFormat.format(new Date()));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setTime(localTimeFormat.format(new Date())), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <p className="community-scheduler-time">
+      <span>Local time</span>
+      <span>{time}</span>
+    </p>
+  );
 }
-export default function Calendar({ calendarId }: Props) {
-    const { getAccessTokenSilently, user } = useAuth0();
-    const [events, setEvents] = useState<any[]>([]);
-    const [importing, setImporting] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [editingEvent, setEditingEvent] = useState<any>(null);
-    const [form, setForm] = useState<EventForm>({
-        title: '', date: '', start: '10:00', end: '11:00', description: ''
+
+// Closes the calendar's event form straight away (used when a Viewer clicks an empty time slot)
+function CloseImmediately({ onClose }: { onClose: () => void }) {
+  useEffect(() => { onClose(); }, [onClose]);
+  return null;
+}
+
+// onRemoved = called if the Owner removes me from this calendar while I'm looking at it
+export default function Calendar({ calendarId, role, onRemoved }: {
+  calendarId: string; role: string | null; onRemoved?: () => void;
+}) {
+  const { getAccessTokenSilently, user } = useAuth0();
+  const userId = user?.sub;
+  const canCreate = role === 'Owner' || role === 'Editor';
+  const canChange = (event: CalendarEvent | undefined) =>
+    !!event && (role === 'Owner' ||
+      (role === 'Editor' && (event as CalendarEvent & { createdBy?: string }).createdBy === userId));
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [attendancePending, setAttendancePending] = useState(false);
+  const [eventStatus, setEventStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [sidebarContent, setSidebarContent] = useState<Element | null>(null);
+  const [view, setView] = useState<ViewType>('month');
+  const [date, setDate] = useState(new Date());
+
+  const findSidebarContent = useCallback((element: HTMLDivElement | null) => {
+    // CalendarKit has no sidebar content slot. Mount below its mini calendar.
+    setSidebarContent(element?.querySelector('.space-y-5:has(> .rounded-2xl input[data-cal-id])') ?? null);
+  }, []);
+
+  const api = useCallback(async (path: string, init: RequestInit = {}) => {
+    const token = await getAccessTokenSilently();
+    const res = await fetch(`${API_URL}/api/calendar${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    return res.json();
+  }, [getAccessTokenSilently]);
 
-    const isGoogleUser = user?.sub?.startsWith('google-oauth2|');
+  useEffect(() => {
+    const controller = new AbortController();
+    api(`/events?calendarId=${encodeURIComponent(calendarId)}`, { signal: controller.signal })
+      .then((data: EventDto[]) => {
+        if (controller.signal.aborted) return;
+        setEvents(data.map(fromDto));
+        setEventStatus('ready');
+      })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        setEventStatus('error');
+        console.error(error);
+      });
+    return () => controller.abort();
+  }, [api, calendarId]);
 
-    const fetchEvents = useCallback(async () => {
-        const token = await getAccessTokenSilently();
-        localStorage.setItem("token", token);
-        const res = await fetch(`/api/calendar/events?calendarId=${calendarId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) {
-            console.error(`Failed to fetch events: ${res.status} ${res.statusText}`);
-            return;
-        }
-        const data = await res.json();
-        setEvents(data.map(toFcEvent));
-    }, [getAccessTokenSilently, calendarId]);
+  const upsert = (e: CalendarEvent) =>
+    setEvents(prev => prev.some(x => x.id === e.id)
+      ? prev.map(x => (x.id === e.id ? e : x))
+      : [...prev, e]);
 
-    useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  // Chat messages arriving over SignalR are passed on through this to whichever chat is open
+  const [chatBus] = useState(() => new EventTarget());
 
-    useCalendarHub(calendarId, getAccessTokenSilently, {
-        onEventCreated: (e) => setEvents(prev => prev.some(x => x.id === e.id) ? prev : [...prev, toFcEvent(e)]),
-        onEventUpdated: (e) => setEvents(prev => prev.map(x => x.id === e.id ? toFcEvent(e) : x)),
-        onEventDeleted: (id) => setEvents(prev => prev.filter(x => x.id !== id)),
-    });
+  useCalendarHub(calendarId, () => getAccessTokenSilently(), {
+    onEventCreated: e => upsert(fromDto(e as EventDto)),
+    onEventUpdated: e => upsert(fromDto(e as EventDto)),
+    onEventDeleted: id => setEvents(prev => prev.filter(x => x.id !== id)),
+    onMessageCreated: m => chatBus.dispatchEvent(new CustomEvent('messageCreated', { detail: m })),
+    onMessageDeleted: m => chatBus.dispatchEvent(new CustomEvent('messageDeleted', { detail: m })),
+    onRemovedFromCalendar: id => { if (id === calendarId) onRemoved?.(); },
+  });
 
-    function handleDateClick({ dateStr }: { dateStr: string }) {
-        setEditingEvent(null);
-        setForm({ title: '', date: dateStr, start: '10:00', end: '11:00', description: '' });
-        setSidebarOpen(true);
+  const body = (e: Partial<CalendarEvent>) => JSON.stringify({
+    calendarId, title: e.title?.trim(), start: e.start, end: e.end,
+    allDay: e.allDay ?? false, description: e.description ?? null,
+    color: e.color ?? null,
+    recurrence: e.recurrence ? {
+      freq: e.recurrence.freq,
+      interval: e.recurrence.interval ?? null,
+      count: e.recurrence.count ?? null,
+      until: e.recurrence.until ?? null,
+    } : null,
+  });
+
+  async function createEvent(e: Partial<CalendarEvent>) {
+   if (!canCreate || !e.title?.trim() || !e.start || !e.end) return;
+    try {
+      const saved: EventDto = await api('/event', { method: 'POST', body: body(e) });
+      upsert(fromDto(saved));
+    } catch (err) { console.error(err); }
+  }
+
+  async function updateEvent(changed: CalendarEvent) {
+    const id = seriesIdOf(changed.id);
+    if (!canChange(events.find(x => x.id === id))) return;   // not allowed to move, resize or edit this event
+    let e = changed;
+
+    if (String(changed.id) !== id) {
+      // A repeated copy was edited or moved: apply the same change to the whole series.
+      const series = events.find(x => x.id === id);
+      if (!series) return;
+      const copyStart = Number(String(changed.id).slice(id.length + 1));
+      const shift = new Date(changed.start).getTime() - copyStart;
+      const length = new Date(changed.end).getTime() - new Date(changed.start).getTime();
+      const start = new Date(new Date(series.start).getTime() + shift);
+      e = { ...changed, id, start, end: new Date(start.getTime() + length) };
     }
 
-    function handleEventClick({ event }: { event: any }) {
-        setEditingEvent(event);
-        setForm({
-            title: event.title,
-            date: event.startStr.split('T')[0],
-            start: event.startStr.split('T')[1]?.slice(0, 5) || '10:00',
-            end: event.endStr.split('T')[1]?.slice(0, 5) || '11:00',
-            description: event.extendedProps.description || ''
-        });
-        setSidebarOpen(true);
+    upsert(e); // optimistic
+    try {
+      const saved: EventDto = await api(`/event/${id}`, { method: 'PUT', body: body(e) });
+      upsert(fromDto(saved));
+    } catch (err) { console.error(err); }
+  }
+
+  async function deleteEvent(id: string) {
+    const seriesId = seriesIdOf(id);   // deleting any repeat deletes the whole series
+    if (!canChange(events.find(x => x.id === seriesId))) return;
+    setEvents(prev => prev.filter(x => x.id !== seriesId));
+    await api(`/event/${seriesId}`, { method: 'DELETE' }).catch(console.error);
+  }
+
+  async function changeAttendance(eventId: string, going: boolean) {
+    if (attendancePending || !userId) return;
+
+    setAttendancePending(true);
+    try {
+      const updated: EventDto = await api(`/event/${eventId}/attend`, {
+        method: going ? 'POST' : 'DELETE',
+      });
+      setEvents(current => current.map(event => event.id === updated.id
+        ? { ...event, attendeeIds: updated.attendeeIds }
+        : event));
+    } finally {
+      setAttendancePending(false);
     }
+  }
 
-    async function handleSave() {
+  const moveEvent = (e: CalendarEvent, start: Date, end: Date) =>
+    updateEvent({ ...e, start, end });
 
-        const startTime = new Date(`${form.date}T${form.start}:00`);
-        const endTime = new Date(`${form.date}T${form.end}:00`);
-
-        if (endTime <= startTime) {
-            alert('End time must be after start time');
-            return;
-        }
-        const token = await getAccessTokenSilently();
-
-        if (editingEvent) {
-            await fetch(`/api/calendar/event/${editingEvent.id}`, {
-                method: 'PATCH',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    title: form.title,
-                    start: `${form.date}T${form.start}:00`,
-                    end: `${form.date}T${form.end}:00`,
-                    description: form.description,
-                }),
-            });
-        } else {
-            await fetch('/api/calendar/event', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    calendarId,
-                    title: form.title,
-                    start: `${form.date}T${form.start}:00`,
-                    end: `${form.date}T${form.end}:00`,
-                    description: form.description,
-                }),
-            });
-        }
-
-        setSidebarOpen(false);
-        fetchEvents();
-    }
-
-    async function handleDelete() {
-        if (!editingEvent) return;
-        const token = await getAccessTokenSilently();
-        await fetch(`/api/calendar/event/${editingEvent.id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        setSidebarOpen(false);
-        fetchEvents();
-    }
-
-    async function handleDuplicate(targetDate: string) {
-        if (!editingEvent) return;
-
-        const startTime = new Date(`${targetDate}T${form.start}:00`);
-        const endTime = new Date(`${targetDate}T${form.end}:00`);
-
-        if (endTime <= startTime) {
-            alert('End time must be after start time');
-            return;
-        }
-
-        const token = await getAccessTokenSilently();
-        await fetch('/api/calendar/event', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                calendarId,
-                title: `${form.title} (copy)`,
-                start: `${targetDate}T${form.start}:00`,
-                end: `${targetDate}T${form.end}:00`,
-                description: form.description,
-            }),
-        });
-
-        setSidebarOpen(false);
-        fetchEvents();
-    }
-
-    async function handleImportGoogle() {
-        setImporting(true);
-        const token = await getAccessTokenSilently();
-        const res = await fetch('/api/calendar/import-google', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) {
-            console.error(`Failed to import events: ${res.status} ${res.statusText}`);
-            alert('Failed to import events from Google Calendar');
-            setImporting(false);
-            return;
-        }
-        const data = await res.json();
-        alert(`Imported ${data.imported} events`);
-        setImporting(false);
-        fetchEvents();
-    }
-
-    return (
-        <div style={{ position: 'relative' }}>
-            <div>
-            
-                {/*{isGoogleUser && (*/}
-                {/*    <button onClick={handleImportGoogle} disabled={importing}>*/}
-                {/*        {importing ? 'Importing...' : 'Import from Google Calendar'}*/}
-                {/*    </button>*/}
-                {/*)}*/}
-                
-                <FullCalendar
-                    plugins={[dayGridPlugin, interactionPlugin, timeGridPlugin]}
-                    initialView="dayGridMonth"
-                    events={events}
-                    dateClick={handleDateClick}
-                    eventClick={handleEventClick}
-                    headerToolbar={{
-                        right: 'prev,next today',
-                        center: 'title',
-                        left: 'dayGridYear,dayGridMonth,timeGridWeek,timeGridDay'
-                    }}
-                />
-            </div>
-
-            <Sidebar
-                isOpen={sidebarOpen}
-                editingEvent={editingEvent}
-                form={form}
-                setForm={setForm}
-                onSave={handleSave}
-                onDelete={handleDelete}
-                onDuplicate={handleDuplicate}
-                onClose={() => setSidebarOpen(false)}
-            />
-        </div>
-    );
+  return (
+    <div className="community-scheduler" style={{ textAlign: 'left' }}>
+      <LocalTime />
+      <div ref={findSidebarContent} style={{ height: 700 }}>
+        <Scheduler
+          events={events} view={view} onViewChange={setView}
+          date={date} onDateChange={setDate}
+          onEventCreate={createEvent} onEventUpdate={updateEvent}
+          onEventDelete={deleteEvent} onEventDrop={moveEvent} onEventResize={moveEvent}
+          renderEventForm={({ isOpen, ...props }) => {
+            if (!isOpen) return null;
+            const event = events.find(item => item.id === seriesIdOf(props.event?.id));
+            // Viewers can't create events, so an empty-slot click closes the form again
+            if (!event && !canCreate) return <CloseImmediately onClose={props.onClose} />;
+            const attendeeIds: string[] = event?.attendeeIds ?? [];
+            return (
+              <EventDialog
+                {...props}
+                attendance={event && userId ? {
+                  going: attendeeIds.includes(userId),
+                  pending: attendancePending,
+                  onChange: going => changeAttendance(event.id, going),
+                } : undefined}
+                canEdit={event ? canChange(event) : canCreate}
+                attendees={event ? (
+                  <EventAttendees
+                    eventId={String(event.id)}
+                    attendeeIds={attendeeIds}
+                    userId={userId}
+                    canRemove={canChange(event)}
+                    api={api}
+                    onUpdated={updated => upsert(fromDto(updated as EventDto))}
+                  />
+                ) : undefined}
+                chat={event ? (
+                  <EventChat key={event.id} eventId={String(event.id)} userId={userId} api={api} bus={chatBus} canModerate={role === 'Owner'} />
+                ) : undefined}
+              />
+            );
+          }}
+        />
+        {sidebarContent && createPortal(<UpcomingEvents events={events} status={eventStatus} />, sidebarContent)}
+      </div>
+    </div>
+  );
 }

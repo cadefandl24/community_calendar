@@ -53,8 +53,19 @@ public class ClaimsService : IClaimsService
     /// </summary>
     public string? GetUserEmail()
     {
-        return _contextAccessor.HttpContext?.User.FindFirst("email")?.Value;
+        var user = _contextAccessor.HttpContext?.User;
+        if (user == null) return null;
+
+        // The email can arrive under different names:
+        //  - "https://ku.calendar.ui/email": added to the access token by our Auth0 Action
+        //  - ClaimTypes.Email: what ASP.NET renames a plain "email" claim to
+        //  - "email": in case that renaming is turned off
+        return user.FindFirst(EmailClaim)?.Value
+            ?? user.FindFirst(ClaimTypes.Email)?.Value
+            ?? user.FindFirst("email")?.Value;
     }
+
+    public const string EmailClaim = "https://ku.calendar.ui/email";
 
     /// <summary>
     /// Get the user name from the current token

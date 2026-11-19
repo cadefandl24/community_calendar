@@ -21,7 +21,6 @@ public class ClaimsCollectionMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         var authHeader = context.Request.Headers["Authorization"].ToString();
-        Console.WriteLine($"Auth header: '{authHeader}'");
         Console.WriteLine($"IsAuthenticated: {context.User?.Identity?.IsAuthenticated}");
         Console.WriteLine($"Auth type: {context.User?.Identity?.AuthenticationType}");
 
